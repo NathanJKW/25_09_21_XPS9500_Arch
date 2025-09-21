@@ -48,9 +48,10 @@ link_one() {
 
 # -------- dotfile links --------
 link_one "$REPO/i3/config"        "${HOME}/.config/i3/config"
+link_one "$REPO/git/gitconfig"    "${HOME}/.gitconfig"
 # link_one "$REPO/X11/xprofile"     "${HOME}/.xprofile"
 # link_one "$REPO/shell/bashrc"     "${HOME}/.bashrc"
 # link_one "$REPO/shell/zshrc"      "${HOME}/.zshrc"
-# link_one "$REPO/git/gitconfig"    "${HOME}/.gitconfig"
+
 
 echo "Done. Backups (if any) are in: $backup_root"
