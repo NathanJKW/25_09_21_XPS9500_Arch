@@ -47,3 +47,64 @@ pacman -Syu archinstall
 
 ---
 
+## Setup SSH
+
+---
+
+### 1. Check if `openssh` is installed
+
+```bash
+pacman -Qs openssh
+```
+
+* If you see `local/openssh …` → it’s installed.
+* If nothing shows → install it:
+
+  ```bash
+  sudo pacman -S openssh
+  ```
+
+---
+
+### 2. Check if the SSH service is enabled/running
+
+Arch uses **systemd**, so run:
+
+```bash
+systemctl status sshd
+```
+
+* If it says **“active (running)”**, SSH is already up.
+* If it says **“disabled” or “inactive”**, start and enable it:
+
+  ```bash
+  sudo systemctl enable --now sshd
+  ```
+
+---
+
+### 3. Verify it’s listening on port 22
+
+```bash
+ss -tulpn | grep ssh
+```
+
+or
+
+```bash
+netstat -tulpn | grep ssh
+```
+
+(you might need to install `net-tools` for `netstat`)
+
+---
+
+### 4. Test from the same machine
+
+```bash
+ssh localhost
+```
+
+If it connects, SSH is working locally.
+
+---
