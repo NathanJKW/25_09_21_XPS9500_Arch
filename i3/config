@@ -189,5 +189,35 @@ bar {
         status_command i3status
 }
 
-# Added by XPS9500 scaler (xrandr fallback)
-exec --no-startup-id xrandr --output eDP1 --scale 0.5x0.5
+# ---------------------------------------------------------------------------
+# monitor setup (xrandr)
+#
+# how to find the values:
+#   xrandr --query
+#     - look for your output name (e.g. eDP1, eDP-1, HDMI-1, DP-1 …)
+#     - under that header, pick a mode (WIDTHxHEIGHT, e.g. 3840x2400)
+#     - choose a refresh rate (e.g. 48.00, 60.00); * marks the current one
+#
+# ui scale rule:
+#   desired ui scale → xrandr scale = 1 / ui scale
+#     100% ui  → --scale 1.00x1.00
+#     125% ui  → --scale 0.80x0.80
+#     150% ui  → --scale 0.6667x0.6667
+#     200% ui  → --scale 0.50x0.50
+#
+# single-monitor position:
+#   --primary --pos 0x0
+#
+# test first in a terminal before reloading i3:
+#   xrandr --output eDP1 --mode 3840x2400 --rate 48.00 --scale 0.8000x0.8000 --primary --pos 0x0
+#
+# ---------------------------------------------------------------------------
+
+# apply on startup / reload
+exec_always --no-startup-id xrandr \
+  --output eDP1 \
+  --mode 3840x2400 \
+  --rate 59.99 \
+  --scale 0.8000x0.8000 \
+  --primary \
+  --pos 0x0
