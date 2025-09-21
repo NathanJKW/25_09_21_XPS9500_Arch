@@ -104,6 +104,8 @@ link_one() {
 link_one "$REPO/i3/config"                          "${HOME}/.config/i3/config"
 link_one "$REPO/git/gitconfig"                      "${HOME}/.gitconfig"
 link_one "$REPO/X11/xorg.conf.d/90-libinput.conf"   "/etc/X11/xorg.conf.d/90-libinput.conf"
+link_one "$REPO/etc/sddm.conf.d/00-autologin.conf"  "/etc/sddm.conf.d/00-autologin.conf"
+link_one "$REPO/etc/sddm.conf.d/10-theme.conf"     "/etc/sddm.conf.d/10-theme.conf"
 
 # Uncomment if/when you want these managed too:
 # link_one "$REPO/X11/xprofile"                      "${HOME}/.xprofile"
