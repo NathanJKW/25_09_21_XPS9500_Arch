@@ -221,3 +221,36 @@ exec_always --no-startup-id xrandr \
   --scale 0.8000x0.8000 \
   --primary \
   --pos 0x0
+
+
+# === Window placement rules ===
+# Send VS Code to workspace 1
+assign [class="^IDE$"] 1
+
+# Send ChatGPT Brave window (custom class) to workspace 1
+assign [class="^ChatGPTApp$"] 1
+
+# Send ChatGPT Brave window (custom class) to workspace 1
+assign [class="^BraveResearch$"] 2
+
+# === Startup apps ===
+exec --no-startup-id code \
+  --class=IDE
+
+# Launch ChatGPT Brave with unique WM_CLASS (needs its own user-data-dir)
+exec --no-startup-id brave \
+  --class=ChatGPTApp \
+  --user-data-dir="$HOME/.config/brave-chatgpt" \
+  --new-window \
+  --no-first-run \
+  --disable-session-crashed-bubble \
+  --start-maximized
+
+# Launch ChatGPT Brave with unique WM_CLASS (needs its own user-data-dir)
+exec --no-startup-id brave \
+  --class=BraveResearch \
+  --user-data-dir="$HOME/.config/brave-research" \
+  --new-window \
+  --no-first-run \
+  --disable-session-crashed-bubble \
+  --start-maximized
