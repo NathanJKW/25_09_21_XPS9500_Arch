@@ -224,11 +224,9 @@ This ensures:
 ## 🛠 How to Add a Module
 
 1. Create a new folder under `modules/` with the correct number and name, e.g.: 
-```
 
 modules/320\_window-manager/module.py
 
-```
 2. Implement an `install(run)` function inside `module.py`.  
 3. The `module_loader` will automatically discover and run it.  
 
