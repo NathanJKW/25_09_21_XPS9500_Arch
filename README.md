@@ -110,11 +110,7 @@ If it connects, SSH is working locally.
 ---
 
 
-Gotcha 👍 — let me clean that up so the Markdown renders nicely and is easy to read in GitHub/GitLab/etc.
 
-Here’s a properly formatted `README.md`:
-
-```markdown
 # Unattended Arch Provisioning — Module Layout
 
 This project provisions an Arch Linux system (built from a minimal **archinstall** base) using modular steps.  
@@ -256,8 +252,4 @@ module.py
 module.py
 
 ```
-
----
-
-Do you want me to go ahead and **generate that folder tree with empty `module.py` stubs (with docstrings)** so you can drop it right into your repo?
 
