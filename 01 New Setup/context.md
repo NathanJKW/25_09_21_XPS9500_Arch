@@ -8,6 +8,7 @@ modules/polybar/module.py
 modules/sddm/module.py
 modules/system/module.py
 modules/x11/module.py
+utils/module_loader.py
 utils/pacman.py
 utils/sudo_session.py
 utils/symlinker.py
@@ -16,25 +17,13 @@ utils/yay.py
 <Contents of included files>
 
 --- main.py ---
-#!/usr/bin/env python3
 from utils.sudo_session import start_sudo_session
-#import tasks  # our other module
-
-def say_hello():
-    """Normal user work"""
-    print("👋 Hello, I’m a normal user method.")
-
-def update_system(run):
-    """Needs sudo"""
-    print("🔧 Updating system packages...")
-    run(["pacman", "-Syu", "--noconfirm"])
+from utils.module_loader import run_all
 
 if __name__ == "__main__":
     run, close = start_sudo_session()
     try:
-        say_hello()            # normal user work
-        update_system(run)     # sudo work in main script
-        # tasks.install_git(run) # sudo work in another module
+        run_all(run)  # will abort entirely if any duplicate order numbers are found
     finally:
         close()
 
@@ -61,6 +50,104 @@ if __name__ == "__main__":
 
 
 --- modules/x11/module.py ---
+
+
+--- utils/module_loader.py ---
+# utils/module_loader.py
+#!/usr/bin/env python3
+from __future__ import annotations
+import importlib.util
+import sys
+from pathlib import Path
+from typing import List, Tuple, Any, Dict
+
+MODULES_DIR = Path(__file__).resolve().parent.parent / "modules"
+
+def _parse_order(folder_name: str) -> int | None:
+    try:
+        return int(folder_name.split("_", 1)[0])
+    except (ValueError, IndexError):
+        return None
+
+def discover_modules() -> List[Tuple[int, str, Any]]:
+    """
+    Discover and import all `module.py` files under `modules/`.
+
+    Returns:
+        List of (order_number, folder_name, imported_module), sorted by order_number ASC.
+
+    Duplicate order numbers are NOT filtered here—use `validate_no_duplicates`
+    to enforce uniqueness before running.
+    """
+    discovered: List[Tuple[int, str, Any]] = []
+
+    if not MODULES_DIR.exists():
+        print(f"⚠️  Modules directory not found: {MODULES_DIR}")
+        return discovered
+
+    for folder in MODULES_DIR.iterdir():
+        if not folder.is_dir():
+            continue
+
+        order = _parse_order(folder.name)
+        if order is None:
+            # Skip folders without a numeric prefix
+            continue
+
+        module_file = folder / "module.py"
+        if not module_file.exists():
+            continue
+
+        module_name = f"modules.{folder.name}"
+        spec = importlib.util.spec_from_file_location(module_name, module_file)
+        if spec is None or spec.loader is None:
+            print(f"⚠️  Could not load spec for {module_file}")
+            continue
+
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        spec.loader.exec_module(mod)
+
+        discovered.append((order, folder.name, mod))
+
+    discovered.sort(key=lambda t: t[0])
+    return discovered
+
+def validate_no_duplicates(discovered: List[Tuple[int, str, Any]]) -> bool:
+    """
+    Check for duplicate order numbers. If found, print errors and return False.
+    """
+    by_order: Dict[int, List[str]] = {}
+    for order, name, _ in discovered:
+        by_order.setdefault(order, []).append(name)
+
+    duplicates = {k: v for k, v in by_order.items() if len(v) > 1}
+    if duplicates:
+        print("❌ Duplicate module order numbers detected. Aborting without running any modules.")
+        for order, names in sorted(duplicates.items()):
+            print(f"   - {order}: {', '.join(sorted(names))}")
+        return False
+    return True
+
+def run_all(run_callable) -> None:
+    """
+    Discover modules, ensure unique order numbers, and call `install(run_callable)`
+    on each module in order. Modules without an `install` callable are skipped.
+
+    If duplicates are detected, nothing is run.
+    """
+    discovered = discover_modules()
+
+    if not validate_no_duplicates(discovered):
+        return  # Do not run anything when duplicates exist.
+
+    for order, name, mod in discovered:
+        fn = getattr(mod, "install", None)
+        if callable(fn):
+            print(f"▶ [{order}] Running {name}.install()")
+            fn(run_callable)
+        else:
+            print(f"⚠️  [{order}] Skipping {name}: no callable install() found.")
 
 
 --- utils/pacman.py ---
@@ -221,9 +308,9 @@ def _seed_sudo_timestamp() -> None:
         pw = None  # drop reference ASAP
 
 def _keepalive_loop(stop_evt: threading.Event, interval: int) -> None:
-    """Refresh sudo timestamp periodically; no password required after seed."""
     while not stop_evt.is_set():
-        subprocess.run(["sudo", "-v"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Use -n to avoid blocking if the timestamp ever expires.
+        subprocess.run(["sudo", "-n", "-v"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         stop_evt.wait(interval)
 
 def start_sudo_session(keepalive_interval_sec: int = 60):
@@ -375,26 +462,25 @@ def _run_or_os(run: Optional[Callable], cmd: list[str]) -> Tuple[bool, Optional[
 
 
 def _ensure_dir_exists(path: Path, *, run: Optional[Callable]) -> bool:
-    """Ensure directory exists (mkdir -p), using sudo runner if provided."""
     try:
         if path.exists():
-            return True
+            if path.is_dir():
+                return True
+            _print_error(f"Path exists but is not a directory: {path}")
+            return False
         _print_action(f"mkdir -p {path}")
         if run is None:
             path.mkdir(parents=True, exist_ok=True)
         else:
             ok, out, err = _run_or_os(run, ["mkdir", "-p", str(path)])
             if not ok:
-                if out:
-                    print(out.rstrip())
-                if err:
-                    _print_error(err.rstrip())
+                if out: print(out.rstrip())
+                if err: _print_error(err.rstrip())
                 return False
         return True
     except Exception as exc:
         _print_error(f"Failed to create directory '{path}': {exc}")
         return False
-
 
 def _backup_root_dir() -> Path:
     """Compute backup root folder for this run."""
