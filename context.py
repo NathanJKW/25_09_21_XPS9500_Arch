@@ -8,7 +8,7 @@ import argparse
 # -------------------------------
 
 # Only files with these extensions will be included
-WHITELIST_EXTENSIONS = [".py", ".sh"]
+WHITELIST_EXTENSIONS = [".py", ".sh", ".qml", ".desktop"]
 
 # These folders will be excluded completely
 BLACKLIST_FOLDERS = ["__pycache__", ".git", ".venv", ".prompts"]

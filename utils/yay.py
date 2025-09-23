@@ -80,7 +80,7 @@ def _noninteractive_sudo_available() -> bool:
     We probe with a harmless no-op: `sudo -n true`.
     """
     try:
-        res = subprocess.run(["sudo", "-n", "true"], check=False, capture_output=false, text=True)
+        res = subprocess.run(["sudo", "-n", "true"], check=False, capture_output=False, text=True)
         return res.returncode == 0
     except Exception:
         return False

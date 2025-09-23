@@ -1,27 +1,26 @@
 <File Tree>
-01 New Setup/main.py
-01 New Setup/modules/00_core/module.py
-01 New Setup/modules/fonts/module.py
-01 New Setup/modules/github/module.py
-01 New Setup/modules/i3/module.py
-01 New Setup/modules/polybar/module.py
-01 New Setup/modules/sddm/module.py
-01 New Setup/modules/system/module.py
-01 New Setup/modules/x11/module.py
-01 New Setup/utils/module_loader.py
-01 New Setup/utils/pacman.py
-01 New Setup/utils/sudo_session.py
-01 New Setup/utils/symlinker.py
-01 New Setup/utils/yay.py
-scripts/audio.sh
-scripts/fonts.sh
-scripts/sddminstall.sh
-scripts/symlinker.sh
-scripts/system_context.sh
+main.py
+modules/000_core/module.py
+modules/010_security/module.py
+modules/020_system_defaults/module.py
+modules/030_backup/module.py
+modules/040_fonts/module.py
+modules/100_firmware/module.py
+modules/110__power/module.py
+modules/120_input/module.py
+modules/130_gpu/module.py
+modules/140_audio/module.py
+modules/150_network/module.py
+modules/160_devtools/module.py
+utils/module_loader.py
+utils/pacman.py
+utils/sudo_session.py
+utils/symlinker.py
+utils/yay.py
 
 <Contents of included files>
 
---- 01 New Setup/main.py ---
+--- main.py ---
 # main.py
 #!/usr/bin/env python3
 """
@@ -85,91 +84,1939 @@ if __name__ == "__main__":
     sys.exit(0 if ok else 1)
 
 
---- 01 New Setup/modules/00_core/module.py ---
+--- modules/000_core/module.py ---
 # modules/00_core/module.py
 #!/usr/bin/env python3
+from __future__ import annotations
+from pathlib import Path
+from typing import Callable
+import shutil
+import subprocess
+import textwrap
+
+from utils.pacman import install_packages
+
+UK_EU_COUNTRIES = ["United Kingdom", "Ireland", "Netherlands", "Germany", "France", "Belgium", "Denmark"]
+
+def _print(msg: str) -> None:
+    print(msg)
+
+def _cmd_as_user(cmd: list[str]) -> subprocess.CompletedProcess:
+    _print(f"$ {' '.join(cmd)}")
+    # Stream output (no capture) so you can see makepkg progress, etc.
+    return subprocess.run(cmd, check=False, text=True)
+
+def _enable_timesyncd(run: Callable) -> bool:
+    try:
+        _print("$ systemctl enable --now systemd-timesyncd.service")
+        res = run(["systemctl", "enable", "--now", "systemd-timesyncd.service"], check=False)
+        return True
+    except Exception as exc:
+        print(f"ERROR: enabling timesyncd: {exc}")
+        return False
+
+def _ensure_dir(path: Path, run: Callable) -> bool:
+    _print(f"$ mkdir -p {path}")
+    res = run(["mkdir", "-p", str(path)], check=False)
+    return res.returncode == 0
+
+def _tweak_pacman_conf(run: Callable) -> bool:
+    try:
+        # Color
+        run(["bash", "-lc",
+             r"grep -q '^[[:space:]]*Color' /etc/pacman.conf || "
+             r"sudo sed -i 's/^#Color/Color/' /etc/pacman.conf || "
+             r"echo 'Color' | sudo tee -a /etc/pacman.conf >/dev/null"], check=False)
+
+        # ParallelDownloads = 10
+        run(["bash", "-lc",
+             r"if grep -q '^[[:space:]]*ParallelDownloads' /etc/pacman.conf; then "
+             r"  sudo sed -i 's/^[[:space:]]*ParallelDownloads.*/ParallelDownloads = 10/' /etc/pacman.conf; "
+             r"else "
+             r"  echo 'ParallelDownloads = 10' | sudo tee -a /etc/pacman.conf >/dev/null; "
+             r"fi"], check=False)
+        return True
+    except Exception as exc:
+        print(f"ERROR: tweaking pacman.conf: {exc}")
+        return False
+
+def _refresh_mirrors(run: Callable) -> bool:
+    """
+    Generate a mirrorlist optimized for UK/EU with sane timeouts.
+    - Only HTTPS mirrors
+    - Only mirrors synced within the last 12 hours
+    - Keep the 15 fastest
+    - Increase download-timeout so slow handshakes don't get dropped too aggressively
+    """
+    try:
+        countries = ",".join(["United Kingdom", "Netherlands", "Germany", "France"])
+        cmd = [
+            "reflector",
+            "--country", countries,
+            "--protocol", "https",
+            "--age", "12",                 # seen as 'last synced within N hours'
+            "--fastest", "15",             # keep N fastest mirrors
+            "--download-timeout", "5",     # avoid premature timeouts
+            "--save", "/etc/pacman.d/mirrorlist",
+        ]
+        print("$ " + " ".join(cmd))
+        res = run(cmd, check=False)  # stream output
+        if res.returncode != 0:
+            print("WARN: reflector failed; keeping existing mirrorlist.")
+        return True
+    except Exception as exc:
+        print(f"ERROR: reflector: {exc}")
+        return False
+
+def _ensure_yay() -> bool:
+    if shutil.which("yay"):
+        _print("$ yay --version  # already installed")
+        _cmd_as_user(["bash", "-lc", "yay --version || true"])
+        return True
+    _print("ℹ️  'yay' not found; bootstrapping yay-bin from AUR (user scope).")
+    try:
+        res = _cmd_as_user(["bash", "-lc", textwrap.dedent(r"""
+            set -e
+            work="/tmp/_aur_yay.$$"
+            mkdir -p "$work"
+            cd "$work"
+            git clone --depth=1 https://aur.archlinux.org/yay-bin.git
+            cd yay-bin
+            makepkg -si --noconfirm
+            rm -rf "$work"
+        """)])
+        return res.returncode == 0
+    except Exception as exc:
+        print(f"ERROR: bootstrapping yay: {exc}")
+        return False
+
+def install(run: Callable) -> bool:
+    try:
+        _print("▶ [00_core] Starting core bootstrap...")
+
+        if not _ensure_dir(Path("/etc/dotfiles"), run):
+            return False
+
+        # Keyring first
+        if not install_packages(["archlinux-keyring"], run):
+            return False
+
+        # Base tooling
+        base_pkgs = [
+            "git", "curl", "wget", "rsync",
+            "vim", "nano",
+            "base-devel",
+            "pacman-contrib",
+            "reflector",
+            "openssh",
+        ]
+        if not install_packages(base_pkgs, run):
+            return False
+
+        _tweak_pacman_conf(run)
+        _refresh_mirrors(run)
+
+        _print("$ pacman -Syu --noconfirm")
+        res_sync = run(["pacman", "-Syu", "--noconfirm"], check=False)  # streamed
+        if res_sync.returncode != 0:
+            print("WARN: pacman -Syu returned non-zero; continuing.")
+
+        _enable_timesyncd(run)
+
+        if not _ensure_yay():
+            print("WARN: Could not ensure yay; AUR installs may fail in later modules.")
+
+        _print("✔ [00_core] Core bootstrap complete.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 00_core.install failed: {exc}")
+        return False
+
+
+--- modules/010_security/module.py ---
+# modules/020_security/module.py
+#!/usr/bin/env python3
 """
-Core Bootstrap Module
+020_security (minimal baseline)
+- Ensure polkit is installed (needed for GUI/system services to escalate privileges)
+- Does NOT modify sudoers or sudo configuration
+
+NOTE:
+    Arch by default does not grant sudo access to the `wheel` group.
+    If you ever hit a situation where your user cannot run `sudo` (scripts, SSH, tools),
+    you may want to add a snippet like:
+
+        %wheel ALL=(ALL:ALL) ALL
+
+    in /etc/sudoers.d/10-wheel (validated with visudo).
+    For now, this module deliberately skips it to avoid unexpected changes.
+"""
+
+from __future__ import annotations
+from typing import Callable
+
+
+def install(run: Callable) -> bool:
+    """
+    Ensure baseline security packages are present.
+    """
+    try:
+        print("▶ [020_security] Starting minimal security setup…")
+
+        # Install polkit (idempotent, safe for desktop apps needing privilege escalation)
+        from utils.pacman import install_packages
+        if not install_packages(["polkit"], run):
+            return False
+
+        print("✔ [020_security] Security baseline complete.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 020_security.install failed: {exc}")
+        return False
+
+
+--- modules/020_system_defaults/module.py ---
+#!/usr/bin/env python3
+"""
+020_system-defaults
+
+Applies safe, SSD-friendly system defaults:
+- journald: persistent logs with size + time caps
+- sysctl: zram-leaning VM knobs + higher inotify limits for dev workflows
+- logrotate: ensure installed for non-journald apps
+- time sync: enable systemd-timesyncd
+
+Re-run safe (idempotent). Uses the provided sudo runner (`run`) from start_sudo_session().
+"""
+
+from __future__ import annotations
+from typing import Callable
+
+JOURNALD_DROPIN = "/etc/systemd/journald.conf.d/10-defaults.conf"
+JOURNALD_CONTENT = """# Installed by 020_system-defaults (drop-in)
+[Journal]
+# Persist logs across boots (falls back to /run early in boot)
+Storage=persistent
+Compress=yes
+Seal=yes
+
+# Bound persistent and runtime usage on SSD
+SystemMaxUse=200M
+SystemKeepFree=50M
+RuntimeMaxUse=50M
+
+# Cap per-file duration and overall retention window
+MaxFileSec=1week
+MaxRetentionSec=1month
+"""
+
+SYSCTL_FILE = "/etc/sysctl.d/99-system-defaults.conf"
+SYSCTL_CONTENT = """# Installed by 020_system-defaults
+# With zram swap enabled, prefer swapping to compressed memory over dropping caches too eagerly.
+vm.swappiness=100
+# Keep inode/dentry caches around a bit longer (default is 100)
+vm.vfs_cache_pressure=50
+
+# Larger file-watch budgets for modern IDE/build tools/sync clients
+fs.inotify.max_user_watches=524288
+fs.inotify.max_user_instances=1024
+fs.inotify.max_queued_events=32768
+
+# NOTE: If you use zram, consider leaving zswap disabled to avoid double-compression.
+# That toggle (if needed) should live in the module that sets up zram.
+"""
+
+def _write_file(path: str, content: str, run: Callable) -> bool:
+    """Create parent directory and write file via tee (works with sudo -n)."""
+    parent = path.rsplit("/", 1)[0]
+    print(f"$ mkdir -p {parent}")
+    r = run(["mkdir", "-p", parent], check=False, capture_output=True)
+    if r.returncode != 0:
+        if r.stdout: print(r.stdout.rstrip())
+        if r.stderr: print(r.stderr.rstrip())
+        return False
+
+    print(f"$ tee {path}  # write drop-in")
+    r = run(["tee", path], check=False, capture_output=True, input_text=content)
+    if r.returncode != 0:
+        if r.stdout: print(r.stdout.rstrip())
+        if r.stderr: print(r.stderr.rstrip())
+        return False
+    return True
+
+def _install_packages(pkgs: list[str], run: Callable) -> bool:
+    try:
+        from utils.pacman import install_packages
+        return install_packages(pkgs, run)
+    except Exception as exc:
+        print(f"ERROR: failed to install packages {pkgs}: {exc}")
+        return False
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [020_system-defaults] Applying system defaults...")
+
+        # 1) journald drop-in
+        if not _write_file(JOURNALD_DROPIN, JOURNALD_CONTENT, run):
+            print("❌ Failed writing journald drop-in.")
+            return False
+
+        # 2) sysctl defaults
+        if not _write_file(SYSCTL_FILE, SYSCTL_CONTENT, run):
+            print("❌ Failed writing sysctl defaults.")
+            return False
+
+        # 3) logrotate (for apps that still write plaintext logs)
+        if not _install_packages(["logrotate"], run):
+            print("❌ Failed installing logrotate.")
+            return False
+
+        # 4) Enable time sync (ok if already enabled)
+        print("$ systemctl enable --now systemd-timesyncd.service")
+        r = run(["systemctl", "enable", "--now", "systemd-timesyncd.service"], check=False, capture_output=True)
+        if r.stdout: print(r.stdout.rstrip())
+        if r.stderr: print(r.stderr.rstrip())
+
+        # Apply changes
+        print("$ systemctl restart systemd-journald")
+        r = run(["systemctl", "restart", "systemd-journald"], check=False, capture_output=True)
+        if r.returncode != 0:
+            if r.stdout: print(r.stdout.rstrip())
+            if r.stderr: print(r.stderr.rstrip())
+            return False
+
+        print("$ sysctl --system  # load /etc/sysctl.d/*")
+        r = run(["sysctl", "--system"], check=False, capture_output=True)
+        if r.stdout: print(r.stdout.rstrip())
+        if r.stderr: print(r.stderr.rstrip())
+        if r.returncode != 0:
+            return False
+
+        print("✔ [020_system-defaults] Complete.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 020_system-defaults.install failed: {exc}")
+        return False
+
+
+--- modules/030_backup/module.py ---
+#!/usr/bin/env python3
+"""
+modules/030_backup/module.py
+
+Btrfs + GRUB backup module for your provisioning framework.
+
+Assumptions (per project README / requirements):
+- Root filesystem is ALWAYS Btrfs.
+- GRUB is installed.
+- Off-machine backups are out-of-scope for this module.
+
+What this module does
+---------------------
+1) Installs backup stack packages:
+   - btrfs-progs, snapper, snap-pac (pre/post pacman snapshots)
+   - grub-btrfs + inotify-tools (GRUB submenu for snapshots via daemon)
+2) Ensures Snapper root config exists and is sane.
+   - Creates `/.snapshots` subvolume if needed (via `snapper create-config`).
+   - Enables timeline + cleanup systemd timers.
+   - Tunes conservative retention limits (editable later).
+3) Adds a small pacman post-transaction hook to record package lists in /var/backups.
+
+Idempotency
+-----------
+- Safe re-runs: checks for existing config/timers/files before changing anything.
+- Prints shell-like actions; surfaces stdout/stderr on failures.
+
+Returns True on success, False on any failure (so the orchestrator can stop).
+"""
+
+from __future__ import annotations
+
+from typing import Callable, Optional
+import shlex
+
+from utils.pacman import install_packages as pacman_install
+
+# ------------------------------- helpers ------------------------------------
+
+def _run_ok(run: Callable, cmd: list[str], *, input_text: Optional[str] = None) -> bool:
+    res = run(cmd, check=False, capture_output=True, input_text=input_text)
+    if res.returncode != 0:
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+        return False
+    if res.stdout:
+        print(res.stdout.rstrip())
+    if res.stderr:
+        print(res.stderr.rstrip())
+    return True
+
+
+def _systemd_enable_now(run: Callable, unit: str) -> bool:
+    return _run_ok(run, ["systemctl", "enable", "--now", unit])
+
+
+def _file_exists(run: Callable, path: str) -> bool:
+    return run(["test", "-e", path], check=False).returncode == 0
+
+
+def _is_enabled(run: Callable, unit: str) -> bool:
+    return run(["systemctl", "is-enabled", "--quiet", unit], check=False).returncode == 0
+
+
+def _write_root_file(run: Callable, path: str, content: str, mode: str = "0644") -> bool:
+    # Use `install` to atomically create/update with permissions.
+    cmd = [
+        "bash",
+        "-lc",
+        f"install -D -m {shlex.quote(mode)} /dev/stdin {shlex.quote(path)}",
+    ]
+    return _run_ok(run, cmd, input_text=content)
+
+
+def _append_root_file(run: Callable, path: str, content: str) -> bool:
+    cmd = ["bash", "-lc", f"mkdir -p $(dirname {shlex.quote(path)}) && tee -a {shlex.quote(path)} >/dev/null"]
+    return _run_ok(run, cmd, input_text=content)
+
+
+def _detect_fs(run: Callable) -> str:
+    res = run(["findmnt", "-n", "-o", "FSTYPE", "/"], check=False, capture_output=True)
+    return (res.stdout or "").strip()
+
+
+# ------------------------------- snapper ------------------------------------
+
+def _ensure_snapper_root_config(run: Callable) -> bool:
+    # Ensure /.snapshots exists and root config is present. We let `snapper create-config` do the right thing.
+    if _file_exists(run, "/etc/snapper/configs/root"):
+        print("snapper root config already present.")
+        return True
+
+    print("Creating snapper root config for '/'.")
+    # This will create /.snapshots as a subvolume (if needed) and a default config.
+    # It can fail if /.snapshots is a plain dir or already a separate subvolume with unexpected layout; we continue with a warning.
+    if not _run_ok(run, ["snapper", "-c", "root", "create-config", "/"]):
+        print("⚠️  'snapper create-config' failed. If /.snapshots already exists from installer, this can be safe to ignore.")
+        # Even when it failed, it's possible the config file actually exists now. Re-check:
+        if not _file_exists(run, "/etc/snapper/configs/root"):
+            return False
+
+    # Permissions as recommended (root:root 750) — tolerate errors if mount is odd; do not fail the run.
+    _run_ok(run, ["bash", "-lc", "chown root:root /.snapshots 2>/dev/null || true" ])
+    _run_ok(run, ["bash", "-lc", "chmod 750 /.snapshots 2>/dev/null || true" ])
+    return True
+
+
+def _tune_snapper_limits(run: Callable) -> bool:
+    # Conservative defaults; can be edited later in /etc/snapper/configs/root
+    edits = [
+        r"sed -i 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE=\"yes\"/' /etc/snapper/configs/root || true",
+        r"sed -i 's/^TIMELINE_CLEANUP=.*/TIMELINE_CLEANUP=\"yes\"/' /etc/snapper/configs/root || true",
+        r"sed -i 's/^TIMELINE_LIMIT_HOURLY=.*/TIMELINE_LIMIT_HOURLY=\"8\"/' /etc/snapper/configs/root || true",
+        r"sed -i 's/^TIMELINE_LIMIT_DAILY=.*/TIMELINE_LIMIT_DAILY=\"7\"/' /etc/snapper/configs/root || true",
+        r"sed -i 's/^TIMELINE_LIMIT_WEEKLY=.*/TIMELINE_LIMIT_WEEKLY=\"4\"/' /etc/snapper/configs/root || true",
+        r"sed -i 's/^TIMELINE_LIMIT_MONTHLY=.*/TIMELINE_LIMIT_MONTHLY=\"12\"/' /etc/snapper/configs/root || true",
+        r"sed -i 's/^TIMELINE_LIMIT_YEARLY=.*/TIMELINE_LIMIT_YEARLY=\"0\"/' /etc/snapper/configs/root || true",
+    ]
+    for line in edits:
+        if not _run_ok(run, ["bash", "-lc", line]):
+            return False
+    return True
+
+
+def _enable_snapper_timers(run: Callable) -> bool:
+    ok = True
+    if not _is_enabled(run, "snapper-timeline.timer"):
+        ok = ok and _systemd_enable_now(run, "snapper-timeline.timer")
+    if not _is_enabled(run, "snapper-cleanup.timer"):
+        ok = ok and _systemd_enable_now(run, "snapper-cleanup.timer")
+    return ok
+
+
+# ------------------------------- pacman hook --------------------------------
+
+def _ensure_pkglist_hook(run: Callable) -> bool:
+    path = "/etc/pacman.d/hooks/95-backup-pkglist.hook"
+    if _file_exists(run, path):
+        return True
+    content = """[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Save package lists to /var/backups (explicit and foreign)
+When = PostTransaction
+Exec = /bin/bash -lc 'install -d -m 0755 /var/backups && pacman -Qqe > /var/backups/pkglist-explicit.txt && pacman -Qqm > /var/backups/pkglist-aur.txt || true'
+"""
+    return _write_root_file(run, path, content, mode="0644")
+
+
+# ------------------------------- grub-btrfs ---------------------------------
+
+def _enable_grub_btrfsd(run: Callable) -> bool:
+    # Start/enabled so GRUB submenu updates when snapshots change.
+    return _systemd_enable_now(run, "grub-btrfsd.service")
+
+
+# --------------------------------- main -------------------------------------
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [030_backup] Setting up Btrfs snapshots (snapper) and GRUB integration…")
+
+        # 0) Assert Btrfs root
+        fstype = _detect_fs(run)
+        if fstype.lower() != "btrfs":
+            print(f"ERROR: Expected Btrfs root, but detected: {fstype or 'unknown'}")
+            return False
+
+        # 1) Packages
+        pkgs = [
+            "btrfs-progs",
+            "snapper",
+            "snap-pac",
+            "grub-btrfs",
+            "inotify-tools",
+        ]
+        if not pacman_install(pkgs, run):
+            return False
+
+        # 2) Snapper root config & limits
+        if not _ensure_snapper_root_config(run):
+            return False
+        if not _tune_snapper_limits(run):
+            return False
+        if not _enable_snapper_timers(run):
+            return False
+
+        # 3) Pacman hook to save package lists (optional but helpful)
+        if not _ensure_pkglist_hook(run):
+            return False
+
+        # 4) GRUB snapshot submenu daemon
+        if not _enable_grub_btrfsd(run):
+            return False
+
+        print("✔ [030_backup] Backup stack configured: snapper + snap-pac + grub-btrfs.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 030_backup.install failed: {exc}")
+        return False
+
+
+--- modules/040_fonts/module.py ---
+#!/usr/bin/env python3
+"""
+040_fonts — System-wide Nerd Font defaults (Option A)
 Version: 1.0.0
 
-What the module does
---------------------
-Sets up essentials required by other modules. Keep this minimal and safe.
-Typical tasks (examples; uncomment/implement as needed):
-- Ensure base packages are present.
-- Create foundational directories.
-- Seed configs used by subsequent modules.
+What this module does
+---------------------
+- Installs a Nerd Font family (JetBrainsMono Nerd Font) system-wide.
+- Installs Nerd Fonts Symbols for robust glyph/icon fallback.
+- Sets **JetBrainsMono Nerd Font** as the **system default for `monospace`** via Fontconfig.
+- Enables Nerd Symbols fallback (so apps automatically get Nerd icons when base fonts lack glyphs).
+- Refreshes font cache and prints a quick verification.
 
-This file is intentionally conservative—fill in real tasks once you define them.
+Notes
+-----
+- We intentionally only set the **monospace** generic family (Option A, recommended).
+- A commented-out alternative (Option B) is provided to force Nerd Font for
+  **monospace, sans-serif, and serif** — not recommended for desktop UI, but
+  you can enable it by swapping the XML below.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Callable
+
+from utils.pacman import install_packages
+
+
+FONTCONF_DIR = Path("/etc/fonts")
+FONTCONF_LOCAL = FONTCONF_DIR / "local.conf"
+FONTCONF_D = FONTCONF_DIR / "conf.d"
+NERD_SYMBOLS_AVAIL = Path("/usr/share/fontconfig/conf.avail/10-nerd-font-symbols.conf")
+NERD_SYMBOLS_LINK = FONTCONF_D / "10-nerd-font-symbols.conf"
+
+# --- Fontconfig XML (Option A: monospace only) ---------------------------------
+XML_OPTION_A = """<?xml version='1.0'?>
+<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
+<fontconfig>
+  <!-- Default monospace font -> JetBrainsMono Nerd Font -->
+  <match target="pattern">
+    <test qual="any" name="family"><string>monospace</string></test>
+    <edit name="family" mode="assign" binding="strong">
+      <string>JetBrainsMono Nerd Font</string>
+    </edit>
+  </match>
+</fontconfig>
+"""
+
+# --- Fontconfig XML (Option B: force all generics to Nerd Font) ----------------
+# NOTE: This will make UI text monospace. Usually undesirable; use with care.
+XML_OPTION_B_COMMENTED = """\n<!--
+<?xml version='1.0'?>
+<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
+<fontconfig>
+  <match target="pattern">
+    <test name="family" qual="any"><string>monospace</string></test>
+    <edit name="family" mode="assign" binding="strong">
+      <string>JetBrainsMono Nerd Font</string>
+    </edit>
+  </match>
+  <match target="pattern">
+    <test name="family" qual="any"><string>sans-serif</string></test>
+    <edit name="family" mode="assign" binding="strong">
+      <string>JetBrainsMono Nerd Font</string>
+    </edit>
+  </match>
+  <match target="pattern">
+    <test name="family" qual="any"><string>serif</string></test>
+    <edit name="family" mode="assign" binding="strong">
+      <string>JetBrainsMono Nerd Font</string>
+    </edit>
+  </match>
+</fontconfig>
+-->
+"""
+
+
+def _print_action(text: str) -> None:
+    print(f"$ {text}")
+
+
+def _ensure_dirs(run: Callable) -> bool:
+    try:
+        for d in (FONTCONF_DIR, FONTCONF_D):
+            _print_action(f"mkdir -p {d}")
+            res = run(["mkdir", "-p", str(d)], check=False, capture_output=True)
+            if res.returncode != 0:
+                if res.stdout:
+                    print(res.stdout.rstrip())
+                if res.stderr:
+                    print(res.stderr.rstrip())
+                return False
+        return True
+    except Exception as exc:
+        print(f"ERROR: failed to ensure fontconfig dirs: {exc}")
+        return False
+
+
+def _write_local_conf(xml: str, run: Callable) -> bool:
+    """Write XML to /etc/fonts/local.conf atomically using sudo runner."""
+    try:
+        with NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp:
+            tmp.write(xml)
+            tmp_path = Path(tmp.name)
+        _print_action(f"install -m 0644 {tmp_path} {FONTCONF_LOCAL}")
+        res = run(["install", "-m", "0644", str(tmp_path), str(FONTCONF_LOCAL)], check=False, capture_output=True)
+        tmp_path.unlink(missing_ok=True)
+        if res.returncode != 0:
+            if res.stdout:
+                print(res.stdout.rstrip())
+            if res.stderr:
+                print(res.stderr.rstrip())
+            return False
+        return True
+    except Exception as exc:
+        print(f"ERROR: failed to write {FONTCONF_LOCAL}: {exc}")
+        return False
+
+
+def _enable_nerd_symbols(run: Callable) -> bool:
+    """Symlink 10-nerd-font-symbols.conf into /etc/fonts/conf.d/ if available."""
+    try:
+        if not NERD_SYMBOLS_AVAIL.exists():
+            print(f"⚠️  Nerd Symbols fontconfig file not found: {NERD_SYMBOLS_AVAIL}")
+            return True  # Non-fatal; the main default still works.
+        _print_action(f"ln -sf {NERD_SYMBOLS_AVAIL} {NERD_SYMBOLS_LINK}")
+        res = run(["ln", "-sf", str(NERD_SYMBOLS_AVAIL), str(NERD_SYMBOLS_LINK)], check=False, capture_output=True)
+        if res.returncode != 0:
+            if res.stdout:
+                print(res.stdout.rstrip())
+            if res.stderr:
+                print(res.stderr.rstrip())
+            return False
+        return True
+    except Exception as exc:
+        print(f"ERROR: failed to enable Nerd Symbols fallback: {exc}")
+        return False
+
+
+def _refresh_cache(run: Callable) -> bool:
+    try:
+        _print_action("fc-cache -f -v")
+        res = run(["fc-cache", "-f", "-v"], check=False, capture_output=True)
+        # fc-cache can be chatty; print on success/failure.
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+        return res.returncode == 0
+    except Exception as exc:
+        print(f"ERROR: failed to refresh font cache: {exc}")
+        return False
+
+
+def _verify(run: Callable) -> None:
+    try:
+        _print_action("fc-match monospace")
+        res = run(["fc-match", "monospace"], check=False, capture_output=True)
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+    except Exception:
+        pass
+
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [040_fonts] Installing and configuring system fonts (Nerd Font as monospace)…")
+
+        # 1) Install required fonts (system-wide)
+        packages = [
+            "ttf-jetbrains-mono-nerd",     # base monospace font
+            "ttf-nerd-fonts-symbols",      # symbols-only fallback for icons
+            # Optional: better emoji fallback (uncomment if desired)
+            # "noto-fonts-emoji",
+        ]
+        if not install_packages(packages, run):
+            print("ERROR: Failed to install required font packages")
+            return False
+
+        # 2) Ensure /etc/fonts and /etc/fonts/conf.d exist
+        if not _ensure_dirs(run):
+            return False
+
+        # 3) Write /etc/fonts/local.conf (Option A)
+        if not _write_local_conf(XML_OPTION_A, run):
+            return False
+
+        # (Optional) If you want Option B instead, replace above with XML_OPTION_B_COMMENTED content
+        # and remove the surrounding HTML comment markers.
+
+        # 4) Enable Nerd Symbols fallback rule
+        if not _enable_nerd_symbols(run):
+            return False
+
+        # 5) Refresh cache and verify
+        if not _refresh_cache(run):
+            return False
+        _verify(run)
+
+        print("✔ [040_fonts] Font configuration complete. JetBrainsMono Nerd Font is the system monospace default.")
+        return True
+    except Exception as exc:
+        print(f"ERROR: 040_fonts.install failed: {exc}")
+        return False
+
+
+--- modules/100_firmware/module.py ---
+#!/usr/bin/env python3
+"""
+modules/100_firmware/module.py
+Firmware & Microcode Base
+
+Scope
+-----
+- CPU microcode (Intel)
+- Core device firmware packages
+- Sound Open Firmware (SoF) stack for Intel cAVS
+- Firmware update stack (fwupd) + Thunderbolt (bolt)
+- NVMe tools (for visibility/updates)
+- Gentle GRUB regen so microcode gets picked up
+- Post-install visibility checks (non-fatal)
+
+Idempotency & Safety
+--------------------
+- Package installs go through utils.pacman.install_packages (uses --needed)
+- Services are enabled with systemctl --now (ok if already enabled)
+- We DO NOT auto-apply firmware updates; we only surface them
+- We DO NOT modify systemd-boot/UKI entries automatically; we log guidance
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Callable, Iterable, Optional
+import shutil
+import subprocess
+
+from utils.pacman import install_packages
+
+
+PKGS: list[str] = [
+    # Core firmware & microcode
+    "linux-firmware",
+    "intel-ucode",
+    # Helpful tools
+    "iucode-tool",
+    "fwupd",
+    "bolt",
+    "nvme-cli",
+    # Audio firmware/config for Intel cAVS/SoF devices
+    "sof-firmware",
+    "alsa-ucm-conf",
+]
+
+
+def _print_action(text: str) -> None:
+    print(f"$ {text}")
+
+
+def _print_warn(text: str) -> None:
+    print(f"⚠️  {text}")
+
+
+def _print_ok(text: str) -> None:
+    print(f"✔ {text}")
+
+
+def _svc(run: Callable, *args: str) -> bool:
+    """Run a systemctl command via the sudo runner, capture output, never raise."""
+    try:
+        _print_action("systemctl " + " ".join(args))
+        res = run(["systemctl", *args], check=False, capture_output=True)
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+        return res.returncode == 0
+    except Exception as exc:
+        _print_warn(f"systemctl failed: {exc}")
+        return False
+
+
+def _have(path_or_prog: str) -> bool:
+    p = Path(path_or_prog)
+    if p.exists():
+        return True
+    return shutil.which(path_or_prog) is not None
+
+
+def _grub_cfg_path() -> Optional[Path]:
+    # Common GRUB cfg location on Arch
+    p = Path("/boot/grub/grub.cfg")
+    return p if p.exists() else None
+
+
+def _grub_regenerate(run: Callable) -> None:
+    """Regenerate GRUB config if GRUB appears present (safe op)."""
+    if not _have("grub-mkconfig"):
+        _print_warn("GRUB not detected (grub-mkconfig missing); skipping GRUB regen.")
+        return
+    cfg_out = "/boot/grub/grub.cfg"
+    _print_action(f"grub-mkconfig -o {cfg_out}")
+    res = run(["grub-mkconfig", "-o", cfg_out], check=False, capture_output=True)
+    if res.stdout:
+        print(res.stdout.rstrip())
+    if res.stderr:
+        print(res.stderr.rstrip())
+    if res.returncode == 0:
+        _print_ok("GRUB configuration regenerated (microcode will be included if installed).")
+    else:
+        _print_warn("Failed to regenerate GRUB config. Microcode may not load until you fix GRUB.")
+
+
+def _run_user(cmd: Iterable[str]) -> None:
+    """Run a harmless, non-privileged command as the current user and print output."""
+    try:
+        _print_action(" ".join(cmd))
+        res = subprocess.run(list(cmd), check=False, capture_output=True, text=True)
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+    except Exception as exc:
+        _print_warn(f"Command failed to run: {' '.join(cmd)}: {exc}")
+
+
+def _nvme_device_present() -> bool:
+    # Quick heuristic: does /dev/nvme0 exist?
+    return Path("/dev/nvme0").exists()
+
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [100_firmware] Installing firmware, microcode, and update stack…")
+
+        # 1) Packages (idempotent)
+        if not install_packages(PKGS, run):
+            return False
+
+        # 2) Enable services
+        _svc(run, "enable", "--now", "fwupd.service")
+        _svc(run, "enable", "--now", "bolt.service")
+
+        # 3) GRUB regen (safe) — only if GRUB appears present
+        if _grub_cfg_path() is not None or _have("grub-mkconfig"):
+            _grub_regenerate(run)
+        else:
+            _print_warn(
+                "GRUB not detected. If you use systemd-boot/UKI, ensure intel-ucode is embedded or an initrd entry exists."
+            )
+
+        # 4) Post-install visibility (non-fatal)
+        # fwupd metadata + available updates (runs as user)
+        if _have("fwupdmgr"):
+            _run_user(["fwupdmgr", "refresh", "--force"])
+            _run_user(["fwupdmgr", "get-devices"])
+            _run_user(["fwupdmgr", "get-updates"])  # may list BIOS/TB/NVMe updates
+        else:
+            _print_warn("fwupdmgr not found in PATH — skip listing firmware updates.")
+
+        # NVMe visibility
+        if _nvme_device_present():
+            # Use sudo-runner for consistent output even if some subcommands need root
+            _print_action("sudo -n nvme list")
+            res = run(["nvme", "list"], check=False, capture_output=True)
+            if res.stdout:
+                print(res.stdout.rstrip())
+            if res.stderr:
+                print(res.stderr.rstrip())
+        else:
+            _print_warn("No /dev/nvme0 detected; skipping nvme list.")
+
+        print("ℹ️  Notes:")
+        print("  - We do NOT auto-apply firmware updates. Use 'fwupdmgr upgrade' and reboot when convenient.")
+        print("  - For systemd-boot/UKI setups, verify your microcode is included (e.g., in mkinitcpio or UKI build).")
+
+        _print_ok("[100_firmware] Completed.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 100_firmware.install failed: {exc}")
+        return False
+
+
+--- modules/110__power/module.py ---
+#!/usr/bin/env python3
+"""
+110_power — Laptop power & thermal baseline (driver-agnostic)
+
+What it does
+------------
+- Installs and enables: TLP + thermald (powertop optional for diagnostics)
+- Masks power-profiles-daemon to avoid conflicts with TLP
+- Applies a small TLP drop-in with conservative, safe defaults
+- No GPU/driver-specific settings here (those live in 130_gpu)
+
+Idempotent and safe to run on fresh systems before graphics drivers are present.
+"""
+
+from __future__ import annotations
+from pathlib import Path
+from typing import Callable
+from utils.pacman import install_packages
+
+TLP_DROPIN = "/etc/tlp.d/10-laptop-baseline.conf"
+
+
+def _write_file(run: Callable, path: str, content: str) -> bool:
+    """Create parent dir, back up existing file, then write content via tee."""
+    try:
+        parent = Path(path).parent
+        # mkdir -p
+        res = run(["mkdir", "-p", str(parent)], check=False, capture_output=True)
+        if res.returncode != 0:
+            if res.stdout: print(res.stdout.rstrip())
+            if res.stderr: print(res.stderr.rstrip())
+            return False
+
+        # backup if present
+        res = run(
+            ["bash", "-lc", f"if [ -f '{path}' ]; then cp -a '{path}' '{path}.bak.$(date +%Y%m%d-%H%M%S)'; fi"],
+            check=False,
+            capture_output=True,
+        )
+        if res.returncode != 0:
+            if res.stdout: print(res.stdout.rstrip())
+            if res.stderr: print(res.stderr.rstrip())
+            return False
+
+        # write
+        res = run(["tee", path], check=False, capture_output=True, input_text=content)
+        if res.returncode != 0:
+            if res.stdout: print(res.stdout.rstrip())
+            if res.stderr: print(res.stderr.rstrip())
+            return False
+
+        return True
+    except Exception as exc:
+        print(f"ERROR: writing {path} failed: {exc}")
+        return False
+
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [110_power] Installing baseline power/thermal tools...")
+
+        # Packages: tlp, thermald, powertop (diagnostics only)
+        if not install_packages(["tlp", "tlp-rdw", "thermald", "powertop"], run):
+            return False
+
+        # Avoid conflicts: mask power-profiles-daemon if it exists
+        run(["systemctl", "mask", "--now", "power-profiles-daemon.service"], check=False)
+
+        # Recommended by TLP when using RDW: mask rfkill units (harmless if absent)
+        run(["systemctl", "mask", "--now", "systemd-rfkill.service", "systemd-rfkill.socket"], check=False)
+
+        # Conservative, driver-agnostic TLP overrides
+        tlp_dropin = """# /etc/tlp.d/10-laptop-baseline.conf — safe defaults (driver-agnostic)
+
+# CPU energy/perf (Intel HWP capable CPUs use EPP underneath)
+CPU_DRIVER_OPMODE_ON_AC=active
+CPU_DRIVER_OPMODE_ON_BAT=active
+CPU_ENERGY_PERF_POLICY_ON_AC=balance_performance
+CPU_ENERGY_PERF_POLICY_ON_BAT=balance_power
+CPU_HWP_DYN_BOOST_ON_AC=1
+CPU_HWP_DYN_BOOST_ON_BAT=0
+CPU_BOOST_ON_AC=1
+CPU_BOOST_ON_BAT=0
+
+# Runtime PM: allow autosuspend on both AC and battery for general devices
+RUNTIME_PM_ON_AC=auto
+RUNTIME_PM_ON_BAT=auto
+
+# USB autosuspend: leave default (kernel/TLP decide); uncomment to force
+# USB_AUTOSUSPEND=1
+
+# SATA link power management: keep defaults; uncomment to experiment
+# SATA_LINKPWR_ON_AC=max_performance
+# SATA_LINKPWR_ON_BAT=med_power_with_dipm
+
+# Notes:
+# - GPU-specific settings (NVIDIA DynamicPowerManagement, i915 PSR/FBC, etc.)
+#   are intentionally NOT set here. Apply them in modules/130_gpu after drivers.
+"""
+        if not _write_file(run, TLP_DROPIN, tlp_dropin):
+            return False
+
+        # Enable services
+        for args in (["enable", "--now", "tlp.service"],
+                     ["enable", "--now", "thermald.service"]):
+            res = run(["systemctl", *args], check=False, capture_output=True)
+            if res.returncode != 0:
+                if res.stdout: print(res.stdout.rstrip())
+                if res.stderr: print(res.stderr.rstrip())
+                return False
+
+        # Helpful (optional) dispatcher for TLP RDW features if you use them later
+        run(["systemctl", "enable", "--now", "NetworkManager-dispatcher.service"], check=False)
+
+        print("✔ [110_power] Baseline applied: TLP + thermald active, conflicts masked.")
+        print("   GPU/driver-specific power tuning will be handled in 130_gpu.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 110_power.install failed: {exc}")
+        return False
+
+
+--- modules/120_input/module.py ---
+# modules/120_input/module.py
+#!/usr/bin/env python3
+"""
+Input Devices (libinput for Xorg)
+Version: 1.0.0
+
+What this module does
+---------------------
+- Installs input-related packages for Xorg:
+  * libinput (core), xf86-input-libinput (Xorg driver)
+  * utilities: xorg-xinput, xorg-xev, evtest
+- Symlinks local Xorg input configs from this module's `xorg.conf.d/`
+  into `/etc/X11/xorg.conf.d/` (with per-run backups via your symlinker).
+- (Optional) If a local `udev/` folder exists, its rules are symlinked into
+  `/etc/udev/rules.d/` (useful for gesture tooling uaccess, etc).
+- Prints non-destructive verification tips at the end.
+
+Idempotency & Safety
+--------------------
+- Uses pacman's `--needed --noconfirm`.
+- Uses your symlinker which backs up existing targets before linking.
+- Stops on first failure and returns False so the orchestrator can abort cleanly.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Callable
+
+from utils.pacman import install_packages
+from utils.symlinker import symlink_tree_files
+
+
+def _module_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def _symlink_xorg(run: Callable) -> bool:
+    """Symlink this module's xorg.conf.d/* into /etc/X11/xorg.conf.d/ if present."""
+    local_xorg = _module_dir() / "xorg.conf.d"
+    if not local_xorg.exists():
+        print("⚠️  [120_input] No local xorg.conf.d/ directory found; skipping Xorg config symlinks.")
+        return True  # Not an error—config is optional.
+
+    if not local_xorg.is_dir():
+        print("ERROR: [120_input] xorg.conf.d exists but is not a directory.")
+        return False
+
+    dest = Path("/etc/X11/xorg.conf.d")
+    print(f"▶ [120_input] Linking Xorg input configs -> {dest}")
+    ok = symlink_tree_files(local_xorg, dest, run=run, use_relative=False)
+    if not ok:
+        print("ERROR: [120_input] Failed to link Xorg input configs.")
+    return ok
+
+
+def _symlink_udev_rules(run: Callable) -> bool:
+    """Symlink optional udev rules from ./udev/* to /etc/udev/rules.d/ if present."""
+    local_udev = _module_dir() / "udev"
+    if not local_udev.exists():
+        # Entirely optional—skip quietly.
+        return True
+
+    if not local_udev.is_dir():
+        print("ERROR: [120_input] udev exists but is not a directory.")
+        return False
+
+    dest = Path("/etc/udev/rules.d")
+    print(f"▶ [120_input] Linking udev rules -> {dest}")
+    ok = symlink_tree_files(local_udev, dest, run=run, use_relative=False)
+    if not ok:
+        print("ERROR: [120_input] Failed to link udev rules.")
+        return False
+
+    # Hint: tell the user how to reload rules (non-fatal if they don't).
+    print("ℹ️  [120_input] To reload udev rules now: sudo udevadm control --reload && sudo udevadm trigger")
+    return True
+
+
+def install(run: Callable) -> bool:
+    """
+    Install input stack and apply local configs.
+
+    Arguments:
+        run: sudo runner from start_sudo_session()
+
+    Returns:
+        True on success, False otherwise.
+    """
+    try:
+        print("▶ [120_input] Installing input device stack (libinput for Xorg)...")
+        packages = [
+            "libinput",
+            "xf86-input-libinput",
+            "xorg-xinput",
+            "xorg-xev",
+            "evtest",
+        ]
+        if not install_packages(packages, run):
+            print("❌ [120_input] Package installation failed.")
+            return False
+
+        if not _symlink_xorg(run):
+            return False
+
+        if not _symlink_udev_rules(run):
+            return False
+
+        print("✔ [120_input] Input stack configured.")
+
+        # Non-destructive verification tips
+        print("\n[120_input] Verify configuration with:")
+        print("  $ libinput list-devices")
+        print("  $ xinput list")
+        print("  $ grep \"Using input driver 'libinput'\" /var/log/Xorg.0.log || true")
+        print("\n[120_input] Notes:")
+        print("  - Edit modules/120_input/xorg.conf.d/90-libinput.conf in-repo to tweak touchpad/mouse defaults.")
+        print("  - If you added udev rules (e.g., for gestures), you may need to replug the device or reboot.")
+
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: [120_input] install() failed: {exc}")
+        return False
+
+
+--- modules/130_gpu/module.py ---
+# modules/130_gpu/module.py
+#!/usr/bin/env python3
+"""
+130_gpu — Hybrid Intel + NVIDIA (Optimus) setup for XPS 9500
+Version: 1.0.0
+
+What this module does (no X11 required)
+---------------------------------------
+1) Installs the correct Intel + NVIDIA userspace/kernel packages for PRIME offload.
+2) Configures NVIDIA Runtime Power Management (RTD3) to save battery:
+   - udev rules to set power/control=auto on bind/add, and =on on unbind.
+   - modprobe option NVreg_DynamicPowerManagement=0x02.
+3) (Optional) Enables nvidia-persistenced (toggle below).
+4) Skips any X11/PRIME tests; those will run after your display-server module.
+
+Idempotency & Safety
+--------------------
+- Uses pacman --needed via utils.pacman.install_packages().
+- Writes config files only if content differs; backs up existing files with a timestamp.
+- Prints shell-like actions and clear results.
+
+Notes
+-----
+- We intentionally DO NOT install xf86-video-intel; modesetting (built into xorg-server)
+  is recommended for your iGPU generation.
+- If you later enable multilib and want 32-bit Vulkan/NVIDIA userspace for gaming,
+  flip INSTALL_MULTILIB_LIBS to True.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Callable, Optional
+
+from utils.pacman import install_packages
+
+# ------------------------- toggles / constants -------------------------
+
+ENABLE_NVIDIA_PERSISTENCE: bool = False         # set True if you want the daemon enabled
+INSTALL_MULTILIB_LIBS: bool = False             # set True if you have [multilib] enabled
+
+UDEV_RULES_PATH = "/etc/udev/rules.d/80-nvidia-pm.rules"
+MODPROBE_CONF_PATH = "/etc/modprobe.d/nvidia-pm.conf"
+
+UDEV_RULES_CONTENT = """\
+# Enable runtime PM for NVIDIA VGA/3D controller devices on driver bind/add
+ACTION=="bind",   SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="bind",   SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="add",    SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="auto"
+ACTION=="add",    SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="auto"
+# Disable runtime PM on unbind (handovers / driver unload)
+ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030000", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x030200", TEST=="power/control", ATTR{power/control}="on"
+"""
+
+MODPROBE_CONTENT = """\
+# Deeper NVIDIA runtime power management for Turing Optimus notebooks
+options nvidia "NVreg_DynamicPowerManagement=0x02"
+# If you encounter odd D3/runtime PM issues on specific driver/firmware combos, try the more conservative:
+# options nvidia NVreg_DynamicPowerManagement=0x01
+"""
+
+# Intel userspace & VA/Vulkan
+PKGS_INTEL = [
+    "mesa", "mesa-utils",           # GL + glxinfo
+    "vulkan-intel",                 # Intel Vulkan ICD
+    "intel-media-driver",           # VAAPI (Gen9+)
+    "libva-utils",                  # vainfo, etc.
+]
+
+# NVIDIA proprietary + PRIME offload helpers
+PKGS_NVIDIA = [
+    "nvidia", "nvidia-utils", "nvidia-settings",
+    "nvidia-prime",                # provides prime-run
+    "vulkan-tools",                # vulkaninfo
+]
+
+# Optional 32-bit userland (multilib)
+PKGS_MULTILIB = [
+    "lib32-nvidia-utils",
+    "lib32-vulkan-intel",
+]
+
+
+# ------------------------- small helpers -------------------------
+
+def _ts() -> str:
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def _print_action(text: str) -> None:
+    print(f"$ {text}")
+
+
+def _print_info(text: str) -> None:
+    print(f"ℹ️  {text}")
+
+
+def _print_error(text: str) -> None:
+    print(f"ERROR: {text}")
+
+
+def _read_file(path: str, run: Callable) -> Optional[str]:
+    """Read file content as root; return None if missing/unreadable."""
+    res = run(["bash", "-lc", f'[[ -r "{path}" ]] && cat "{path}" || true'],
+              check=False, capture_output=True)
+    if res.returncode != 0:
+        return None
+    return res.stdout or ""
+
+
+def _write_file_if_changed(path: str, content: str, run: Callable) -> bool:
+    """If existing content differs, back it up and write new content."""
+    try:
+        existing = _read_file(path, run)
+        if existing is not None and existing.strip() == content.strip():
+            _print_info(f"{path} already up-to-date.")
+            return True
+
+        # Backup if exists
+        if existing is not None and existing != "":
+            backup = f"{path}.bak.{_ts()}"
+            _print_action(f"cp -a {path} {backup}")
+            res = run(["cp", "-a", path, backup], check=False, capture_output=True)
+            if res.returncode != 0:
+                if res.stderr: _print_error(res.stderr.rstrip())
+                return False
+
+        # Ensure parent dir exists
+        _print_action(f"mkdir -p $(dirname {path})")
+        res = run(["bash", "-lc", f"mkdir -p \"$(dirname '{path}')\""], check=False, capture_output=True)
+        if res.returncode != 0:
+            if res.stderr: _print_error(res.stderr.rstrip())
+            return False
+
+        # Write via tee (root)
+        _print_action(f"tee {path}  >/dev/null")
+        res = run(["tee", path], check=False, capture_output=True, input_text=content)
+        if res.returncode != 0:
+            if res.stderr: _print_error(res.stderr.rstrip())
+            return False
+
+        return True
+    except Exception as exc:
+        _print_error(f"Failed writing {path}: {exc}")
+        return False
+
+
+def _reload_udev(run: Callable) -> bool:
+    ok = True
+    _print_action("udevadm control --reload")
+    r1 = run(["udevadm", "control", "--reload"], check=False, capture_output=True)
+    ok &= (r1.returncode == 0)
+    if r1.returncode != 0 and r1.stderr:
+        _print_error(r1.stderr.rstrip())
+
+    _print_action("udevadm trigger")
+    r2 = run(["udevadm", "trigger"], check=False, capture_output=True)
+    ok &= (r2.returncode == 0)
+    if r2.returncode != 0 and r2.stderr:
+        _print_error(r2.stderr.rstrip())
+    return ok
+
+
+def _enable_persistenced(run: Callable) -> bool:
+    _print_action("systemctl enable --now nvidia-persistenced.service")
+    res = run(["systemctl", "enable", "--now", "nvidia-persistenced.service"], check=False, capture_output=True)
+    if res.returncode != 0:
+        if res.stderr: _print_error(res.stderr.rstrip())
+        return False
+    return True
+
+
+# ------------------------- main entrypoint -------------------------
+
+def install(run: Callable) -> bool:
+    """
+    Install & configure hybrid GPU (Intel + NVIDIA) with runtime PM.
+    Skips X11/PRIME verification; that happens in your display-server module.
+    """
+    try:
+        print("▶ [130_gpu] Installing Intel + NVIDIA drivers and configuring power management...")
+
+        # 1) Packages
+        pkgs = PKGS_INTEL + PKGS_NVIDIA + (PKGS_MULTILIB if INSTALL_MULTILIB_LIBS else [])
+        if not install_packages(pkgs, run):
+            _print_error("Package installation failed.")
+            return False
+
+        # 2) Config files
+        if not _write_file_if_changed(UDEV_RULES_PATH, UDEV_RULES_CONTENT, run):
+            return False
+        if not _write_file_if_changed(MODPROBE_CONF_PATH, MODPROBE_CONTENT, run):
+            return False
+
+        # 3) Apply udev changes
+        if not _reload_udev(run):
+            _print_error("Failed to reload/trigger udev.")
+            return False
+
+        # 4) Optional persistence daemon
+        if ENABLE_NVIDIA_PERSISTENCE:
+            if not _enable_persistenced(run):
+                _print_error("Failed to enable nvidia-persistenced (optional).")
+                return False
+
+        print("✔ [130_gpu] GPU base install & power-management config complete.")
+        _print_info("X11/PRIME checks will run after your display-server module is installed.")
+        _print_info("Tip: after X11, test with `prime-run glxinfo | grep \"OpenGL renderer\"` and check "
+                    "`/sys/bus/pci/devices/0000:01:00.0/power/runtime_status` is `suspended` at idle.")
+        return True
+
+    except Exception as exc:
+        _print_error(f"130_gpu.install failed: {exc}")
+        return False
+
+
+--- modules/140_audio/module.py ---
+# modules/140_audio/module.py
+#!/usr/bin/env python3
+"""
+140_audio — PipeWire/WirePlumber + SOF firmware (Intel cAVS) with optional Bluetooth
+Version: 1.0.0
+
+What this module does
+---------------------
+- Installs a modern PipeWire audio stack on Arch (replacing PulseAudio).
+- Ensures Intel cAVS (Comet Lake) works by installing SOF firmware + UCM.
+- (Optional) Sets up Bluetooth audio (BlueZ) and a small WirePlumber tweak.
+- Adds a couple of safe, tiny config snippets (can be removed later).
+- Enables/starts user services and verifies the result.
+
+Environment toggles
+-------------------
+- AUDIO_ENABLE_BLUETOOTH=0  -> skip installing/enabling Bluetooth audio (default: enabled)
+
+Idempotency
+-----------
+- pacman uses --needed; config files written with install -D; systemd enable/now is safe to repeat.
+"""
+
+from __future__ import annotations
+import os
+import subprocess
+from typing import Callable
+
+from utils.pacman import install_packages
+
+
+# ------------------------------- helpers -------------------------------------
+
+def _print(msg: str) -> None:
+    print(msg)
+
+
+def _run_user(cmd: list[str], *, check: bool = False, capture_output: bool = True) -> subprocess.CompletedProcess:
+    """
+    Run a command as the *invoking user* (NOT via sudo). Useful for:
+    - systemctl --user …
+    - pactl/wpctl status queries
+    """
+    _print("$ " + " ".join(cmd))
+    return subprocess.run(cmd, check=check, text=True, capture_output=capture_output)
+
+
+def _write_root_file(path: str, content: str, run: Callable) -> bool:
+    """
+    Create/update a root-owned file at `path` using the sudo-runner.
+    Uses: install -Dm0644 /dev/stdin <path>
+    """
+    try:
+        res = run(
+            ["install", "-Dm0644", "/dev/stdin", path],
+            check=False,
+            capture_output=True,
+            input_text=content,
+        )
+        if res.returncode != 0:
+            if res.stdout:
+                print(res.stdout.rstrip())
+            if res.stderr:
+                print(res.stderr.rstrip())
+            return False
+        return True
+    except Exception as exc:
+        print(f"ERROR: failed writing {path}: {exc}")
+        return False
+
+
+def _enable_user_units(units: list[str]) -> bool:
+    ok = True
+    for u in units:
+        try:
+            res = _run_user(["systemctl", "--user", "enable", "--now", u], check=False)
+            if res.returncode != 0:
+                ok = False
+                if res.stdout:
+                    print(res.stdout.rstrip())
+                if res.stderr:
+                    print(res.stderr.rstrip())
+        except Exception as exc:
+            print(f"ERROR: enabling user unit {u}: {exc}")
+            ok = False
+    return ok
+
+
+def _enable_system_units(units: list[str], run: Callable) -> bool:
+    ok = True
+    for u in units:
+        try:
+            res = run(["systemctl", "enable", "--now", u], check=False, capture_output=True)
+            if res.returncode != 0:
+                ok = False
+                if res.stdout:
+                    print(res.stdout.rstrip())
+                if res.stderr:
+                    print(res.stderr.rstrip())
+        except Exception as exc:
+            print(f"ERROR: enabling system unit {u}: {exc}")
+            ok = False
+    return ok
+
+
+def _verify_stack() -> bool:
+    """
+    Basic verification:
+    - pactl info -> Server Name mentions PipeWire
+    - wpctl status -> has at least one Sink that is not 'auto_null' (best-effort)
+    """
+    try:
+        pi = _run_user(["pactl", "info"], check=False)
+        server = ""
+        if pi.returncode == 0 and pi.stdout:
+            for line in pi.stdout.splitlines():
+                if line.startswith("Server Name:"):
+                    server = line.split(":", 1)[1].strip()
+                    break
+        if "PipeWire" not in server:
+            print("❌ Verification: pactl server is not PipeWire (got: %r)" % server)
+            return False
+    except FileNotFoundError:
+        print("❌ Verification failed: 'pactl' not found.")
+        return False
+
+    # wpctl status check (best-effort)
+    try:
+        ws = _run_user(["wpctl", "status"], check=False)
+        if ws.returncode == 0 and ws.stdout:
+            has_device = any(
+                ("Sinks:" in line or "Audio" in line) and "auto_null" not in line
+                for line in ws.stdout.splitlines()
+            )
+            if not has_device:
+                print("⚠️  Verification: wpctl did not show a non-null sink; continuing but mark as warning.")
+        else:
+            print("⚠️  Verification: wpctl status unavailable.")
+    except FileNotFoundError:
+        print("⚠️  Verification: 'wpctl' not found (pipewire-cli not installed?)")
+
+    return True
+
+
+# ------------------------------- install -------------------------------------
+
+def install(run: Callable) -> bool:
+    try:
+        _print("▶ [140_audio] Installing PipeWire/WirePlumber + Intel SOF firmware")
+
+        enable_bt = os.environ.get("AUDIO_ENABLE_BLUETOOTH", "1") not in ("0", "false", "False", "no", "No")
+
+        # Core audio stack (explicit pieces to avoid meta surprises)
+        core_pkgs = [
+            "pipewire",
+            "pipewire-alsa",
+            "pipewire-pulse",
+            "pipewire-jack",
+            "wireplumber",
+            "alsa-utils",
+            "alsa-ucm-conf",
+            "sof-firmware",
+            # handy mixers/inspectors
+            "pavucontrol",
+            #"pipewire-cli",  # provides wpctl
+        ]
+
+        bt_pkgs = ["bluez", "bluez-utils"] if enable_bt else []
+
+        if not install_packages(core_pkgs + bt_pkgs, run):
+            return False
+
+        # Optional PipeWire pulse shim tweak: switch to newly connected outputs (USB DAC/HDMI/BT)
+        pw_pulse_snippet = """# Auto-switch to new outputs (PipeWire Pulse shim)
+# Remove this file if you prefer to keep the current default sink.
+pulse.cmd = [
+  { cmd = "load-module" args = "module-switch-on-connect" }
+]
+"""
+        if not _write_root_file("/etc/pipewire/pipewire-pulse.conf.d/50-switch-on-connect.conf", pw_pulse_snippet, run):
+            return False
+
+        # WirePlumber: reduce "first-sound lag" / pops by disabling suspend (can comment out if undesired)
+        wp_disable_suspend = """# Reduce latency pops by disabling node suspend for ALSA/BlueZ
+monitor.alsa.rules = [
+  {
+    matches = [ { node.name = "~alsa_input.*" }, { node.name = "~alsa_output.*" } ]
+    actions = { update-props = { session.suspend-timeout-seconds = 0 } }
+  }
+]
+monitor.bluez.rules = [
+  {
+    matches = [ { node.name = "~bluez_input.*" }, { node.name = "~bluez_output.*" } ]
+    actions = { update-props = { session.suspend-timeout-seconds = 0 } }
+  }
+]
+"""
+        if not _write_root_file("/etc/wireplumber/wireplumber.conf.d/60-disable-suspend.conf", wp_disable_suspend, run):
+            return False
+
+        # Optional Bluetooth codecs/niceties (only if BT enabled)
+        if enable_bt:
+            wp_bt_codecs = """# Prefer modern Bluetooth codec options where available
+monitor.bluez.properties = {
+  bluez5.enable-sbc-xq = true
+  bluez5.enable-msbc   = true
+  # Keep defaults conservative; add aptX/LDAC via AUR plugins if needed.
+}
+"""
+            if not _write_root_file("/etc/wireplumber/wireplumber.conf.d/70-bluez-codecs.conf", wp_bt_codecs, run):
+                return False
+
+        # Enable/Start user services (explicit, even though socket-activated)
+        if not _enable_user_units([
+            "pipewire.service",
+            "pipewire-pulse.service",
+            "wireplumber.service",
+        ]):
+            # Not fatal; the services will usually start on login, but we try to be explicit.
+            _print("⚠️  Could not enable one or more user services. Continuing.")
+
+        # Enable system Bluetooth daemon if requested
+        if enable_bt:
+            if not _enable_system_units(["bluetooth.service"], run):
+                _print("⚠️  Could not enable 'bluetooth.service'. You can enable it later with: sudo systemctl enable --now bluetooth.service")
+
+        # Quick verification + sample test output (best effort)
+        if not _verify_stack():
+            _print("❌ [140_audio] Verification failed.")
+            return False
+
+        # Show quick info to the user
+        try:
+            _print("\n▶ pactl info (summary)")
+            pi = _run_user(["pactl", "info"], check=False)
+            if pi.stdout:
+                for line in pi.stdout.splitlines():
+                    if line.startswith(("Server Name:", "Default Sink:", "Default Source:")):
+                        print(line)
+        except Exception:
+            pass
+
+        _print("✔ [140_audio] Audio stack installed and verified.")
+        _print("   Tips: run 'pavucontrol' to pick outputs, 'wpctl status' to inspect nodes.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 140_audio.install failed: {exc}")
+        return False
+
+
+--- modules/150_network/module.py ---
+# modules/150_network/module.py
+#!/usr/bin/env python3
+"""
+150_network — Core networking stack for Arch
+- NetworkManager (with iwd backend)
+- Bluetooth (bluez)
+- Thunderbolt (bolt)
+- VPN: OpenVPN + WireGuard (NM-native)
+- Useful tools and privacy defaults (MAC randomization)
 """
 
 from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
+from utils.pacman import install_packages
 
-def install(run: Callable) -> bool:
-    """
-    Perform core bootstrap steps.
+NM_CONF_DIR = Path("/etc/NetworkManager/conf.d")
+NM_WIFI_BACKEND = NM_CONF_DIR / "wifi_backend.conf"
+NM_MAC_PRIVACY = NM_CONF_DIR / "wifi_rand_mac.conf"
 
-    Arguments:
-        run:
-            The sudo-runner returned from `start_sudo_session()`. Call it with a
-            list[str] command to run as root non-interactively.
 
-    Returns:
-        True on success, False on failure.
-    """
+def _print_action(text: str) -> None:
+    print(f"$ {text}")
+
+
+def _write_file_via_tee(path: Path, content: str, run: Callable) -> bool:
     try:
-        print("▶ [00_core] Starting core bootstrap...")
-
-        # Example: create a common directory (idempotent).
-        # We print our action like a shell command for clarity.
-        target_dir = Path("/etc/dotfiles")
-        print(f"$ mkdir -p {target_dir}")
-        res = run(["mkdir", "-p", str(target_dir)], check=False, capture_output=True)
+        _print_action(f"mkdir -p {path.parent}")
+        res = run(["mkdir", "-p", str(path.parent)], check=False, capture_output=True)
         if res.returncode != 0:
-            print("ERROR: Failed to create /etc/dotfiles")
-            if res.stdout:
-                print(res.stdout.rstrip())
-            if res.stderr:
-                print(res.stderr.rstrip())
+            if res.stdout: print(res.stdout.rstrip())
+            if res.stderr: print(res.stderr.rstrip())
             return False
 
-        # Example: you could install baseline packages (commented until you decide).
-        # from utils.pacman import install_packages
-        # if not install_packages(["git", "curl"], run):
-        #     return False
-
-        print("✔ [00_core] Core bootstrap complete.")
+        _print_action(f"tee {path}  # write config")
+        res = run(["tee", str(path)], check=False, capture_output=True, input_text=content)
+        if res.returncode != 0:
+            if res.stdout: print(res.stdout.rstrip())
+            if res.stderr: print(res.stderr.rstrip())
+            return False
         return True
     except Exception as exc:
-        print(f"ERROR: 00_core.install failed: {exc}")
+        print(f"ERROR: failed to write {path}: {exc}")
         return False
 
 
---- 01 New Setup/modules/fonts/module.py ---
+def _enable_service(name: str, run: Callable) -> bool:
+    try:
+        _print_action(f"systemctl enable --now {name}")
+        res = run(["systemctl", "enable", "--now", name], check=False, capture_output=True)
+        if res.returncode != 0:
+            if res.stdout: print(res.stdout.rstrip())
+            if res.stderr: print(res.stderr.rstrip())
+            return False
+        return True
+    except Exception as exc:
+        print(f"ERROR: failed to enable {name}: {exc}")
+        return False
 
 
---- 01 New Setup/modules/github/module.py ---
+def _run_check(cmd: list[str], run: Callable) -> None:
+    try:
+        _print_action(" ".join(cmd))
+        res = run(cmd, check=False, capture_output=True)
+        if res.stdout: print(res.stdout.rstrip())
+        if res.stderr: print(res.stderr.rstrip())
+    except Exception as exc:
+        print(f"⚠️  Skipping diagnostic {' '.join(cmd)}: {exc}")
 
 
---- 01 New Setup/modules/i3/module.py ---
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [150_network] Starting network stack setup...")
+
+        # 1) Packages (idempotent)
+        base_pkgs = [
+            "networkmanager",
+            "iwd",                       # NM will use iwd as backend (do NOT enable iwd.service)
+            "bluez", "bluez-utils",
+            "bolt",                      # Thunderbolt authorization (D-Bus activated)
+            "usbutils",                  # lsusb
+            "ethtool",
+            "nm-connection-editor",
+            "network-manager-applet",
+
+            # --- VPN support ---
+            "openvpn",
+            "networkmanager-openvpn",
+            "wireguard-tools",           # NM has native WG support; tools provide wg/wg-quick, keygen, etc.
+        ]
+        if not install_packages(base_pkgs, run):
+            print("ERROR: Package installation failed.")
+            return False
+
+        # 2) NetworkManager configuration
+        nm_backend_cfg = """[device]
+wifi.backend=iwd
+"""
+        if not _write_file_via_tee(NM_WIFI_BACKEND, nm_backend_cfg, run):
+            return False
+
+        nm_mac_cfg = """[device-mac-randomization]
+wifi.scan-rand-mac-address=yes
+
+[connection-mac-randomization]
+ethernet.cloned-mac-address=random
+wifi.cloned-mac-address=stable
+"""
+        if not _write_file_via_tee(NM_MAC_PRIVACY, nm_mac_cfg, run):
+            return False
+
+        # 3) Enable essential services
+        if not _enable_service("NetworkManager.service", run):
+            return False
+        if not _enable_service("bluetooth.service", run):
+            return False
+        # iwd.service: not enabled; NetworkManager handles it.
+        # bolt.service: D-Bus activated; no enable needed.
+
+        # 4) Diagnostics (non-fatal)
+        print("\n─ Diagnostics (non-fatal) ─")
+        _run_check(["nmcli", "general", "status"], run)
+        _run_check(["nmcli", "device"], run)
+        _run_check(["rfkill", "list"], run)
+        _run_check(["bluetoothctl", "show"], run)
+        _run_check(["boltctl", "list"], run)
+
+        # 5) Helpful next steps
+        print("""
+Next steps:
+  • Wi-Fi: use 'nm-connection-editor' or the tray applet to join networks.
+  • If Wi-Fi is soft-blocked:      rfkill unblock all
+
+  • OpenVPN:
+      - Import an .ovpn profile:    nmcli connection import type openvpn file <file.ovpn>
+      - Or via GUI: Network Connections → + → Import VPN
+      - Start:                      nmcli connection up <name>
+
+  • WireGuard (NM-native):
+      - Create from file:           nmcli connection import type wireguard file <wg.conf>
+      - Or create new:              nmcli connection add type wireguard con-name <name> ifname <wg0> \
+                                     ip4 <Address/CIDR> gw4 <Gateway>  # then nmcli con mod … for peers
+      - Start:                      nmcli connection up <name>
+
+  • Thunderbolt (secure mode):
+      - Plug device →               boltctl list
+      - Authorize/persist:          boltctl enroll <UUID>
+Notes:
+  - Do NOT enable iwd.service directly; NetworkManager manages iwd as the Wi-Fi backend.
+  - 'bolt' is D-Bus activated; explicit service enable is unnecessary.
+""".rstrip())
+
+        print("✔ [150_network] Network stack configured.")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 150_network.install failed: {exc}")
+        return False
 
 
---- 01 New Setup/modules/polybar/module.py ---
+--- modules/160_devtools/module.py ---
+#!/usr/bin/env python3
+"""
+160_devtools — Containers (Podman + NVIDIA GPU) & Virtualization (QEMU/KVM)
+
+What this module does
+---------------------
+- Installs handy hardware CLIs: usbutils (lsusb), pciutils (lspci)
+- Sets up Podman for *rootless* containers and enables the **user** socket
+  (Docker-API compatible via DOCKER_HOST). Handles headless/SSH sessions using:
+  - `systemctl --user --machine nathan@.host ...` (preferred)
+  - Fallback with explicit XDG/DBUS env for the user
+  - Final fallback to *system* podman.socket (opt-in if user socket cannot be enabled)
+- Adds NVIDIA Container Toolkit (CDI) so `podman run --gpus all ...` works
+- Installs virtualization stack: qemu-desktop, libvirt, virt-manager, edk2-ovmf, dnsmasq
+- Enables libvirtd, adds user to 'kvm' and 'libvirt', and autostarts the default libvirt NAT network
+
+Idempotent & non-interactive by design. Uses the sudo-session `run` from utils.sudo_session.
+"""
+
+from __future__ import annotations
+
+import getpass
+import pwd
+from typing import Callable, Iterable
+from utils.pacman import install_packages
 
 
---- 01 New Setup/modules/sddm/module.py ---
+def _print_action(txt: str) -> None:
+    print(f"$ {txt}")
 
 
---- 01 New Setup/modules/system/module.py ---
+def _run_ok(run: Callable, cmd: list[str]) -> bool:
+    """Run a command via the sudo runner, print output, return True on rc==0."""
+    _print_action(" ".join(cmd))
+    res = run(cmd, check=False, capture_output=True)
+    if res.stdout:
+        print(res.stdout.rstrip())
+    if res.stderr:
+        print(res.stderr.rstrip())
+    return res.returncode == 0
 
 
---- 01 New Setup/modules/x11/module.py ---
+def _enable_units(run: Callable, units: Iterable[str]) -> bool:
+    """Enable/start systemd system units."""
+    for u in units:
+        if not _run_ok(run, ["systemctl", "enable", "--now", u]):
+            print(f"ERROR: failed to enable/start {u}")
+            return False
+    return True
 
 
---- 01 New Setup/utils/module_loader.py ---
+def _add_user_to_groups(run: Callable, user: str, groups: Iterable[str]) -> None:
+    """Best-effort user group membership (no hard failure if already a member)."""
+    for g in groups:
+        if not _run_ok(run, ["usermod", "-aG", g, user]):
+            print(f"⚠️  could not add {user} to group '{g}' (may already be a member).")
+
+
+def _enable_podman_user_socket(run: Callable, user: str) -> bool:
+    """
+    Enable the rootless Podman user socket for `user`, robust in headless/SSH sessions.
+    Tries machine transport first, then an env-injected fallback. Returns True on success.
+    """
+    # Allow user manager to run outside of active logins
+    _run_ok(run, ["loginctl", "enable-linger", user])
+
+    # Preferred: systemd "machine" transport to the user's systemd
+    if _run_ok(run, ["systemctl", "--user", "--machine", f"{user}@.host", "enable", "--now", "podman.socket"]):
+        return True
+
+    # Fallback: set XDG_RUNTIME_DIR + DBUS address for the target user and call systemctl --user
+    uid = pwd.getpwnam(user).pw_uid
+    xdg = f"/run/user/{uid}"
+    env_line = f"XDG_RUNTIME_DIR={xdg} DBUS_SESSION_BUS_ADDRESS=unix:path={xdg}/bus"
+    cmd = ["runuser", "-l", user, "-c", f"{env_line} systemctl --user enable --now podman.socket"]
+    if _run_ok(run, cmd):
+        return True
+
+    return False
+
+
+def install(run: Callable) -> bool:
+    print("▶ [160_devtools] Podman (rootless + GPU) & QEMU/KVM/libvirt setup")
+
+    user = getpass.getuser()
+
+    # 0) Ensure handy hardware CLIs (you were missing lsusb earlier)
+    if not install_packages(["usbutils", "pciutils"], run):
+        return False
+
+    # 1) Podman (rootless) & compose helper
+    if not install_packages(["podman", "podman-compose"], run):
+        return False
+
+    if not _enable_podman_user_socket(run, user):
+        print("❌ Could not enable user-level podman.socket.")
+        # Optional fallback to system-level podman socket to avoid hard failure:
+        print("⚠️  Falling back to system-level podman.socket (/run/podman/podman.sock).")
+        if not _enable_units(run, ["podman.socket"]):
+            print("❌ Failed to enable system-level podman.socket as well.")
+            return False
+        print("ℹ️  For Docker-API clients, use: DOCKER_HOST=unix:///run/podman/podman.sock")
+    else:
+        print("✔ Rootless Podman user socket enabled.")
+        print("ℹ️  For Docker-API clients, use: DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock")
+
+    # 2) GPU in containers: NVIDIA Container Toolkit (CDI)
+    if not install_packages(["nvidia-container-toolkit"], run):
+        return False
+    print("✔ NVIDIA Container Toolkit installed (CDI).")
+    print("   Test: podman run --rm --gpus all nvidia/cuda:12.4.1-base-archlinux nvidia-smi")
+
+    # 3) Virtualization: QEMU/KVM + libvirt + virt-manager + OVMF + NAT
+    if not install_packages(["qemu-desktop", "libvirt", "virt-manager", "edk2-ovmf", "dnsmasq"], run):
+        return False
+
+    if not _enable_units(run, ["libvirtd.service"]):
+        return False
+
+    # Add user to groups for device/session access
+    _add_user_to_groups(run, user, ["kvm", "libvirt"])
+
+    # Start & autostart default NAT network (best-effort; ignore failures if it exists)
+    _print_action("virsh net-start default  # best-effort")
+    run(["virsh", "net-start", "default"], check=False, capture_output=True)
+    _print_action("virsh net-autostart default")
+    run(["virsh", "net-autostart", "default"], check=False, capture_output=True)
+
+    print("✔ [160_devtools] Complete. You may need to log out/in for new group membership to take effect.")
+    return True
+
+
+--- utils/module_loader.py ---
 # utils/module_loader.py
 # utils/module_loader.py
 #!/usr/bin/env python3
@@ -340,7 +2187,7 @@ def run_all(run_callable) -> bool:
         return False
 
 
---- 01 New Setup/utils/pacman.py ---
+--- utils/pacman.py ---
 # utils/pacman.py
 #!/usr/bin/env python3
 """
@@ -432,7 +2279,7 @@ def install_packages(packages: List[str], run: Callable) -> bool:
         _print_action(_join(cmd))
 
         # Use the sudo-session runner (executes `sudo -n <cmd>` under the hood).
-        result = run(cmd, check=False, capture_output=True)
+        result = run(cmd, check=False, capture_output=False)
 
         if result.returncode != 0:
             _print_error("pacman failed with a non-zero exit status.")
@@ -473,7 +2320,7 @@ if __name__ == "__main__":
         close()
 
 
---- 01 New Setup/utils/sudo_session.py ---
+--- utils/sudo_session.py ---
 # utils/sudo_session.py
 #!/usr/bin/env python3
 """
@@ -644,7 +2491,7 @@ def start_sudo_session(keepalive_interval_sec: int = 60):
     return run, close
 
 
---- 01 New Setup/utils/symlinker.py ---
+--- utils/symlinker.py ---
 # utils/symlinker.py
 #!/usr/bin/env python3
 """
@@ -986,7 +2833,7 @@ if __name__ == "__main__":
         close()
 
 
---- 01 New Setup/utils/yay.py ---
+--- utils/yay.py ---
 # utils/yay.py
 #!/usr/bin/env python3
 """
@@ -1069,7 +2916,7 @@ def _noninteractive_sudo_available() -> bool:
     We probe with a harmless no-op: `sudo -n true`.
     """
     try:
-        res = subprocess.run(["sudo", "-n", "true"], check=False, capture_output=True, text=True)
+        res = subprocess.run(["sudo", "-n", "true"], check=False, capture_output=False, text=True)
         return res.returncode == 0
     except Exception:
         return False
@@ -1113,7 +2960,7 @@ def install_packages(packages: List[str], run=None) -> bool:
         _print_action(_join(cmd))
 
         # Run as the current user (NOT via sudo). yay will escalate internally if needed.
-        result = subprocess.run(cmd, check=False, text=True, capture_output=True)
+        result = subprocess.run(cmd, check=False, text=True, capture_output=False)
 
         if result.returncode != 0:
             _print_error("yay failed with a non-zero exit status.")
@@ -1144,416 +2991,4 @@ if __name__ == "__main__":
     print("👟 Demo: installing 'bat' via yay (idempotent).")
     ok = install_packages(["bat"])
     print(f"Result: {'success' if ok else 'failure'}")
-
-
---- scripts/audio.sh ---
-#!/usr/bin/env bash
-# setup-audio.sh - simple PipeWire audio setup for Arch Linux
-
-set -e
-
-echo "[*] Updating system..."
-sudo pacman -Syu --noconfirm
-
-echo "[*] Installing PipeWire stack..."
-sudo pacman -S --needed --noconfirm \
-  pipewire pipewire-alsa pipewire-pulse wireplumber pavucontrol
-
-if pacman -Qq pulseaudio &>/dev/null; then
-  echo "[*] Removing PulseAudio (conflicts with PipeWire)..."
-  sudo pacman -Rns --noconfirm pulseaudio
-fi
-
-echo "[*] Enabling PipeWire user services..."
-systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service
-
-echo "[*] Verifying setup..."
-systemctl --user status pipewire.service --no-pager -l | grep "Active:"
-systemctl --user status pipewire-pulse.service --no-pager -l | grep "Active:"
-systemctl --user status wireplumber.service --no-pager -l | grep "Active:"
-
-echo
-echo "[*] Listing audio devices (ALSA):"
-aplay -l || true
-
-echo
-echo "[*] PipeWire info:"
-pactl info || true
-
-echo
-echo "[*] Done! Use 'pavucontrol' to pick your output device (HDMI, speakers, etc)."
-
-
---- scripts/fonts.sh ---
-#!/usr/bin/env bash
-#
-# setup-jetbrains-nerd-font.sh
-#
-# Install JetBrainsMono Nerd Font system-wide and set it as the default monospace font.
-#
-
-set -euo pipefail
-
-FONT_PKG="ttf-jetbrains-mono-nerd"
-FONTCONF="/etc/fonts/local.conf"
-
-echo "[*] Installing JetBrainsMono Nerd Font..."
-sudo pacman -S --needed --noconfirm "$FONT_PKG"
-
-echo "[*] Refreshing font cache..."
-sudo fc-cache -f -v
-
-echo "[*] Detecting JetBrains Nerd Font family name..."
-FAMILY=$(fc-list | grep -m1 "JetBrainsMono Nerd Font" | sed -E 's/.*: "([^"]+)".*/\1/')
-
-if [[ -z "$FAMILY" ]]; then
-  echo "[!] Could not detect JetBrainsMono Nerd Font in fc-list!"
-  exit 1
-fi
-
-echo "[*] Detected family: $FAMILY"
-
-echo "[*] Writing fontconfig rule to $FONTCONF..."
-sudo tee "$FONTCONF" >/dev/null <<EOF
-<?xml version='1.0'?>
-<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
-<fontconfig>
-  <!-- Default monospace font -->
-  <match target="pattern">
-    <test qual="any" name="family">
-      <string>monospace</string>
-    </test>
-    <edit name="family" mode="assign" binding="strong">
-      <string>$FAMILY</string>
-    </edit>
-  </match>
-</fontconfig>
-EOF
-
-echo "[*] Rebuilding font cache..."
-sudo fc-cache -f -v
-
-echo "[*] Verifying default monospace font..."
-fc-match monospace
-
-echo "[✓] JetBrainsMono Nerd Font is now the default monospace font system-wide."
-
-
---- scripts/sddminstall.sh ---
-#!/usr/bin/env bash
-# -----------------------------------------------------------------------------
-# install_sddm.sh  v1.0
-#
-# Minimal installer for SDDM on Arch Linux.
-#
-# - Installs the `sddm` package
-# - Disables LightDM if present
-# - Enables SDDM service
-#
-# Intended for use on a brand new minimal install where checks are unnecessary.
-# -----------------------------------------------------------------------------
-
-set -euo pipefail
-
-# Install SDDM
-sudo pacman -S --noconfirm --needed sddm
-
-# Enable SDDM
-sudo systemctl enable sddm.service --now
-
-echo "✓ SDDM installed and enabled."
-
-
---- scripts/symlinker.sh ---
-#!/usr/bin/env bash
-# -----------------------------------------------------------------------------
-# bootstrap_symlinks.sh  v1.5
-#
-# Create symlinks from your dotfiles repo into the correct locations.
-# - Creates parent directories as needed
-# - Backs up existing targets (user files to ~/.dotfiles_backup/<ts>/…,
-#   system files to "<dest>.bak.<ts>" alongside the file)
-# - Automatically uses sudo for non-writable/system paths (e.g. /etc/*)
-#
-# Repo root (edit if you move the repo):
-#   REPO="/home/nathan/repos/25_09_21_XPS9500_Arch"
-#
-# What it links (adjust to taste):
-#   $REPO/i3/config                      ->  ~/.config/i3/config
-#   $REPO/git/gitconfig                  ->  ~/.gitconfig
-#   $REPO/X11/xorg.conf.d/90-libinput.conf  ->  ~/.config/xorg.conf.d/90-libinput.conf
-#   (optional system path)
-#   $REPO/X11/xorg.conf.d/90-libinput.conf  ->  /etc/X11/xorg.conf.d/90-libinput.conf
-# -----------------------------------------------------------------------------
-
-set -euo pipefail
-
-REPO="/home/nathan/repos/25_09_21_XPS9500_Arch"
-timestamp="$(date +%Y%m%d-%H%M%S)"
-backup_root="${HOME}/.dotfiles_backup/${timestamp}"
-
-# ----- helpers ---------------------------------------------------------------
-
-need_sudo() {
-  # return 0 if we need sudo to write the DEST's parent dir
-  local dest="$1"
-  local parent; parent="$(dirname "$dest")"
-  [ -w "$parent" ] || { [ -e "$parent" ] && [ ! -w "$parent" ]; } && return 0
-  # parent not existing? test writability of its nearest existing ancestor
-  while [ ! -d "$parent" ]; do parent="$(dirname "$parent")"; done
-  [ -w "$parent" ] || return 0
-  return 1
-}
-
-ensure_parent() {
-  local dest="$1"
-  local parent; parent="$(dirname "$dest")"
-  if need_sudo "$dest"; then
-    sudo mkdir -p "$parent"
-  else
-    mkdir -p "$parent"
-  fi
-}
-
-backup_target() {
-  # create a backup of existing dest (file/dir/link)
-  local dest="$1"
-  if need_sudo "$dest"; then
-    local bk="${dest}.bak.${timestamp}"
-    echo "↪ backing up (root): $dest -> $bk"
-    sudo cp -a --no-preserve=ownership "$dest" "$bk" 2>/dev/null || sudo mv -f "$dest" "$bk"
-  else
-    local rel="${dest#${HOME}/}"
-    local bk="${backup_root}/${rel}"
-    echo "↪ backing up: $dest -> $bk"
-    mkdir -p "$(dirname "$bk")"
-    mv -f "$dest" "$bk"
-  fi
-}
-
-same_symlink_target() {
-  # returns 0 if dest is a symlink pointing to src
-  local src="$1" dest="$2"
-  [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$src")" ]
-}
-
-link_one() {
-  local src="$1" dest="$2"
-
-  # sanity
-  if [ ! -e "$src" ] && [ ! -L "$src" ]; then
-    echo "⚠  missing source: $src"
-    return 0
-  fi
-
-  ensure_parent "$dest"
-
-  # if exists and not already the same link, back it up
-  if [ -e "$dest" ] || [ -L "$dest" ]; then
-    if same_symlink_target "$src" "$dest"; then
-      echo "✓ already linked: $dest → $(readlink -f "$dest")"
-      return 0
-    fi
-    backup_target "$dest"
-  fi
-
-  if need_sudo "$dest"; then
-    echo "→ linking (root): $dest -> $src"
-    sudo ln -sfn "$src" "$dest"
-  else
-    echo "→ linking: $dest -> $src"
-    ln -sfn "$src" "$dest"
-  fi
-}
-
-# ----- user-scope links (no sudo) -------------------------------------------
-
-link_one "$REPO/i3/config"                          "${HOME}/.config/i3/config"
-link_one "$REPO/git/gitconfig"                      "${HOME}/.gitconfig"
-link_one "$REPO/X11/xorg.conf.d/90-libinput.conf"   "/etc/X11/xorg.conf.d/90-libinput.conf"
-link_one "$REPO/etc/sddm.conf.d/00-autologin.conf"  "/etc/sddm.conf.d/00-autologin.conf"
-link_one "$REPO/etc/sddm.conf.d/10-theme.conf"     "/etc/sddm.conf.d/10-theme.conf"
-
-# Uncomment if/when you want these managed too:
-# link_one "$REPO/X11/xprofile"                      "${HOME}/.xprofile"
-# link_one "$REPO/shell/bashrc"                       "${HOME}/.bashrc"
-# link_one "$REPO/shell/zshrc"                        "${HOME}/.zshrc"
-
-# ----- wrap up ---------------------------------------------------------------
-
-# Show where user backups (if any) landed
-[ -d "$backup_root" ] && echo "User backups (if any) are in: $backup_root"
-echo "Done."
-
-
---- scripts/system_context.sh ---
-#!/usr/bin/env bash
-# sys_prompt.sh — generate a concise, ChatGPT-friendly summary of this Linux system
-
-set -euo pipefail
-
-# Helpers
-has() { command -v "$1" >/dev/null 2>&1; }
-line() { printf '%*s\n' "${1:-60}" '' | tr ' ' '-'; }
-kv() { printf "%s: %s\n" "$1" "${2:-N/A}"; }
-run() { # run if available; trim trailing spaces/newlines
-  if has "$1"; then shift; "$@" 2>/dev/null | sed -e 's/[[:space:]]*$//' || true
-  fi
-}
-
-header() { echo; line 80; echo "# $*"; line 80; }
-
-# Basic
-HOSTNAME="$(hostname 2>/dev/null || echo N/A)"
-KERNEL="$(uname -r 2>/dev/null || echo N/A)"
-UNAME="$(uname -a 2>/dev/null || echo N/A)"
-UPTIME="$(awk -v s="$(cut -d. -f1 /proc/uptime 2>/dev/null)" 'BEGIN{
-d=int(s/86400); h=int((s%86400)/3600); m=int((s%3600)/60);
-printf("%dd %dh %dm", d,h,m)}' 2>/dev/null || echo N/A)"
-
-# OS info
-if [ -r /etc/os-release ]; then
-  . /etc/os-release
-  OS_NAME="${PRETTY_NAME:-$NAME $VERSION_ID}"
-else
-  OS_NAME="$(run lsb_release lsb_release -d | cut -f2)"
-fi
-
-# CPU
-CPU_MODEL="$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ //')"
-CPU_CORES="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo N/A)"
-CPU_ARCH="$(uname -m 2>/dev/null || echo N/A)"
-CPU_FLAGS="$(grep -m1 ^flags /proc/cpuinfo 2>/dev/null | cut -d: -f2- | tr ' ' ' ' | sed -e 's/^ //' )"
-
-# Memory
-MEM_TOTAL="$(grep -m1 MemTotal /proc/meminfo 2>/dev/null | awk '{printf "%.1f GiB",$2/1024/1024}')"
-MEM_FREE="$(free -h 2>/dev/null | awk '/Mem:/ {print $7" (available)"}')"
-
-# Disks & FS
-DISK_LAYOUT="$(lsblk -o NAME,FSTYPE,LABEL,SIZE,MOUNTPOINT -r 2>/dev/null | sed -e 's/^/  /')"
-DISK_USAGE="$(df -hT -x tmpfs -x devtmpfs 2>/dev/null | sed -e 's/^/  /')"
-
-# GPU / Graphics
-GPU_LSPCI="$(lspci 2>/dev/null | grep -E 'VGA|3D|Display' || true)"
-GPU_RENDERER="$(run glxinfo glxinfo | awk -F': ' '/OpenGL renderer string/ {print $2; exit}')"
-DISPLAY_SERVER="$(printf '%s' "${XDG_SESSION_TYPE:-$(loginctl show-session $XDG_SESSION_ID 2>/dev/null | awk -F= '/Type=/{print $2}')}")"
-
-# Network
-IP_BRIEF="$(run ip ip -br a | sed -e 's/^/  /')"
-DNS_RESOLV="$(awk '/^nameserver/ {print $2}' /etc/resolv.conf 2>/dev/null | paste -sd, -)"
-DEFAULT_ROUTE="$(run ip ip route | awk '/default/ {print $3; exit}')"
-
-# Userspace / DE-WM / Shell
-SHELL_NAME="${SHELL:-$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)}"
-DESKTOP="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-$(echo "${GDMSESSION:-}" )}}"
-WINDOW_MANAGER="$(run wmctrl wmctrl -m | awk -F': ' '/Name:/ {print $2}')"
-if [ -z "${WINDOW_MANAGER:-}" ]; then
-  WINDOW_MANAGER="$(xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | awk '{print $5}' | xargs -r -I{} xprop -id {} _NET_WM_NAME 2>/dev/null | awk -F\" '{print $2}' )"
-fi
-
-# Kernel modules of interest (graphics/network)
-KMODS="$(run lsmod lsmod | awk 'NR==1 || /(^i915|^amdgpu|^nouveau|^nvidia|^iwlwifi|^ath9k|^rtw|^r8169|^e1000|^tg3|^ax2|^mt76)/' 2>/dev/null | sed -e 's/^/  /')"
-
-# Package management (Arch-aware with fallbacks)
-PKG_MGR=""
-PKG_COUNT=""
-PKG_EXPLICIT=""
-PKG_AUR=""
-if has pacman; then
-  PKG_MGR="pacman"
-  PKG_COUNT="$(pacman -Q 2>/dev/null | wc -l | tr -d ' ')"
-  PKG_EXPLICIT="$(pacman -Qe 2>/dev/null | head -n 60 | awk '{print $1}' | paste -sd' ' -)"
-  [ "$(pacman -Qe 2>/dev/null | wc -l)" -gt 60 ] && PKG_EXPLICIT="$PKG_EXPLICIT …"
-  PKG_AUR="$(pacman -Qm 2>/dev/null | head -n 40 | awk '{print $1}' | paste -sd' ' -)"
-  [ "$(pacman -Qm 2>/dev/null | wc -l)" -gt 40 ] && PKG_AUR="$PKG_AUR …"
-elif has dpkg; then
-  PKG_MGR="dpkg/apt"
-  PKG_COUNT="$(dpkg -l 2>/dev/null | awk '/^ii/ {c++} END{print c+0}')"
-elif has rpm; then
-  PKG_MGR="rpm"
-  PKG_COUNT="$(rpm -qa 2>/dev/null | wc -l | tr -d ' ')"
-fi
-
-# Kernel params (useful for GPU, virtualization, etc.)
-KCMDLINE="$(cat /proc/cmdline 2>/dev/null | sed -e 's/initramfs\.img[^ ]*//g')"
-
-# Virtualization / Firmware
-VIRT="$(systemd-detect-virt 2>/dev/null || true)"
-FW="$(run fwupdmgr fwupdmgr get-devices | awk -F': ' '/^├─|^└─/ {print $2}' | paste -sd', ' -)"
-
-# Audio
-AUDIO="$(run pactl pactl info | awk -F': ' '/Server Name|Default Sink|Default Source/ {print $1": "$2}')"
-if [ -z "$AUDIO" ]; then
-  AUDIO="$(run aplay aplay -l | sed -e 's/^/  /')"
-fi
-
-# Compose Output
-header "SYSTEM CONTEXT (for ChatGPT)"
-kv "Hostname" "$HOSTNAME"
-kv "OS" "$OS_NAME"
-kv "Kernel" "$KERNEL"
-kv "Uptime" "$UPTIME"
-kv "Architecture" "$CPU_ARCH"
-kv "Virtualization" "${VIRT:-N/A}"
-
-header "CPU"
-kv "Model" "${CPU_MODEL:-N/A}"
-kv "Cores (online)" "${CPU_CORES:-N/A}"
-if [ -n "${CPU_FLAGS:-}" ]; then
-  kv "Key flags" "$(echo "$CPU_FLAGS" | grep -oE '(avx512|avx2|avx|sse4_2|sse4_1|aes|vmx|svm)' | sort -u | paste -sd',' -)"
-fi
-
-header "MEMORY"
-kv "Total" "${MEM_TOTAL:-N/A}"
-kv "Available" "${MEM_FREE:-N/A}"
-
-header "GRAPHICS"
-kv "GPU (lspci)" "${GPU_LSPCI:-N/A}"
-kv "Renderer (OpenGL)" "${GPU_RENDERER:-N/A}"
-kv "Display Server" "${DISPLAY_SERVER:-N/A}"
-echo "Kernel Modules:"
-echo "${KMODS:-  N/A}"
-
-header "DISKS"
-echo "Block Devices:"
-echo "${DISK_LAYOUT:-  N/A}"
-echo
-echo "Mounted Filesystems:"
-echo "${DISK_USAGE:-  N/A}"
-
-header "NETWORK"
-kv "Default Gateway" "${DEFAULT_ROUTE:-N/A}"
-kv "DNS" "${DNS_RESOLV:-N/A}"
-echo "Interfaces (brief):"
-echo "${IP_BRIEF:-  N/A}"
-
-header "USER ENVIRONMENT"
-kv "Shell" "${SHELL_NAME:-N/A}"
-kv "Desktop Environment" "${DESKTOP:-N/A}"
-kv "Window Manager" "${WINDOW_MANAGER:-N/A}"
-
-header "AUDIO"
-if [ -n "${AUDIO:-}" ]; then
-  echo "$AUDIO"
-else
-  echo "  N/A"
-fi
-
-header "PACKAGES"
-kv "Manager" "${PKG_MGR:-N/A}"
-kv "Installed Count" "${PKG_COUNT:-N/A}"
-if [ "$PKG_MGR" = "pacman" ]; then
-  kv "Explicit (sample)" "${PKG_EXPLICIT:-N/A}"
-  kv "AUR/Foreign (sample)" "${PKG_AUR:-N/A}"
-fi
-
-header "KERNEL CMDLINE (trimmed)"
-echo "  $KCMDLINE"
-
-echo
-line 80
-echo "# NOTES"
-echo "- Lists are truncated to keep this summary compact. If you need full lists, let me know."
-echo "- Safe, read-only commands were used; no system changes were made."
-line 80
 
