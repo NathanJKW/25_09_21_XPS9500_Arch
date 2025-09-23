@@ -69,7 +69,7 @@ def _refresh_mirrors(run: Callable) -> bool:
             "--protocol", "https",
             "--age", "12",                 # seen as 'last synced within N hours'
             "--fastest", "15",             # keep N fastest mirrors
-            "--download-timeout", "20",    # avoid premature timeouts
+            "--download-timeout", "5",     # avoid premature timeouts
             "--save", "/etc/pacman.d/mirrorlist",
         ]
         print("$ " + " ".join(cmd))
