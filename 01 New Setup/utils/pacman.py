@@ -89,7 +89,7 @@ def install_packages(packages: List[str], run: Callable) -> bool:
         _print_action(_join(cmd))
 
         # Use the sudo-session runner (executes `sudo -n <cmd>` under the hood).
-        result = run(cmd, check=False, capture_output=True)
+        result = run(cmd, check=False, capture_output=False)
 
         if result.returncode != 0:
             _print_error("pacman failed with a non-zero exit status.")

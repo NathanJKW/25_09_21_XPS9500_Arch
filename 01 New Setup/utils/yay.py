@@ -80,7 +80,7 @@ def _noninteractive_sudo_available() -> bool:
     We probe with a harmless no-op: `sudo -n true`.
     """
     try:
-        res = subprocess.run(["sudo", "-n", "true"], check=False, capture_output=True, text=True)
+        res = subprocess.run(["sudo", "-n", "true"], check=False, capture_output=false, text=True)
         return res.returncode == 0
     except Exception:
         return False
@@ -124,7 +124,7 @@ def install_packages(packages: List[str], run=None) -> bool:
         _print_action(_join(cmd))
 
         # Run as the current user (NOT via sudo). yay will escalate internally if needed.
-        result = subprocess.run(cmd, check=False, text=True, capture_output=True)
+        result = subprocess.run(cmd, check=False, text=True, capture_output=False)
 
         if result.returncode != 0:
             _print_error("yay failed with a non-zero exit status.")

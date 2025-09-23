@@ -1,19 +1,26 @@
+Got it 👍 — here’s your full **polished README** with the tightened-up Arch install guide merged seamlessly with the 
 # 25_09_21_XPS9500_Arch
 
-## Update Arch Installer
+## 🖥️ Preparing a Fresh Arch Install
+
+### 1. Update the Arch installer (from ISO)
+```bash
 pacman -Syu archinstall
+````
 
-## In the **live installer (terminal only)**
+---
 
-1. **Check Wi-Fi device:**
+### 2. Connect to Wi-Fi
+
+1. **List network interfaces**
 
    ```bash
    ip link
    ```
 
-   You should see something like `wlan0` or `wlp2s0`.
+   Look for something like `wlan0` or `wlp2s0`.
 
-2. **Bring interface up:**
+2. **Bring interface up**
 
    ```bash
    ip link set wlan0 up
@@ -21,13 +28,13 @@ pacman -Syu archinstall
 
    (replace `wlan0` with your device name)
 
-3. **Use `iwctl` (recommended with Arch ISO):**
+3. **Use `iwctl` to connect**
 
    ```bash
    iwctl
    ```
 
-   Then inside the `iwctl` prompt:
+   Inside the prompt:
 
    ```
    device list
@@ -37,219 +44,198 @@ pacman -Syu archinstall
    exit
    ```
 
-   It will ask for your Wi-Fi password.
+   Enter your Wi-Fi password when prompted.
 
-4. **Test connection:**
+4. **Verify internet**
 
    ```bash
-   ping archlinux.org
+   ping -c 3 archlinux.org
    ```
 
 ---
 
-## Setup SSH
+### 3. Enable SSH (optional but recommended)
+
+1. **Check if installed**
+
+   ```bash
+   pacman -Qs openssh
+   ```
+
+   If missing:
+
+   ```bash
+   pacman -S openssh
+   ```
+
+2. **Start and enable service**
+
+   ```bash
+   systemctl enable --now sshd
+   ```
+
+3. **Verify it’s running**
+
+   ```bash
+   systemctl status sshd
+   ```
+
+4. **Quick test**
+
+   ```bash
+   ssh localhost
+   ```
 
 ---
 
-### 1. Check if `openssh` is installed
+# ⚙️ Unattended Arch Provisioning — Module Layout
 
-```bash
-pacman -Qs openssh
-```
+This project provisions an Arch Linux system (built from a minimal **archinstall** base) using modular steps.
+Modules are numbered with a **3-digit scheme**:
 
-* If you see `local/openssh …` → it’s installed.
-* If nothing shows → install it:
+* **1st digit** → category
+* **2nd + 3rd digits** → subcategory (with gaps left for expansion)
 
-  ```bash
-  sudo pacman -S openssh
-  ```
-
----
-
-### 2. Check if the SSH service is enabled/running
-
-Arch uses **systemd**, so run:
-
-```bash
-systemctl status sshd
-```
-
-* If it says **“active (running)”**, SSH is already up.
-* If it says **“disabled” or “inactive”**, start and enable it:
-
-  ```bash
-  sudo systemctl enable --now sshd
-  ```
-
----
-
-### 3. Verify it’s listening on port 22
-
-```bash
-ss -tulpn | grep ssh
-```
-
-or
-
-```bash
-netstat -tulpn | grep ssh
-```
-
-(you might need to install `net-tools` for `netstat`)
-
----
-
-### 4. Test from the same machine
-
-```bash
-ssh localhost
-```
-
-If it connects, SSH is working locally.
-
----
-
-
-
-# Unattended Arch Provisioning — Module Layout
-
-This project provisions an Arch Linux system (built from a minimal **archinstall** base) using modular steps.  
-Modules are numbered with a **3-digit scheme**:  
-
-- **1st digit** → category  
-- **2nd + 3rd digits** → subcategory (with gaps left for expansion)  
-
-Each module lives under `modules/<number_name>/module.py` and implements an `install(run)` function.  
-Execution order is determined by the numeric prefix (lowest first).  
+Each module lives under `modules/<number_name>/module.py` and implements an `install(run)` function.
+Execution order is determined by the numeric prefix (lowest first).
 
 ---
 
 ## 📊 Categories & Subcategories
 
-### 1xx — Core System
+### 0xx — Core System
+
 Things needed on *every* machine before higher layers.
 
-- **100_core** — base essentials (git, curl, pacman/yay setup, reflector)  
-- **110_security** — sudo, polkit, firewall baseline  
-- **120_system-defaults** — sysctl, journald, logrotate  
-- **130_backup** — timeshift, snapper, borg  
+* **000\_core** — base essentials (git, curl, pacman/yay setup, reflector)
+* **010\_security** — sudo, polkit (baseline auth, not firewall)
+* **020\_system-defaults** — sysctl, journald, logrotate
+* **030\_backup** — timeshift, snapper, borg
+* **040\_fonts** — system/user fonts (optional early install)
 
 ---
 
-### 2xx — Hardware & Platform
-Drivers, firmware, power management.  
-⚠️ Run **before the desktop stack** so GPU/audio/input works when WM/DE is installed.
+### 1xx — Hardware & Platform
 
-- **200_firmware** — fwupd, microcode  
-- **210_power** — tlp, auto-cpufreq, thermald  
-- **220_input** — libinput, touchpads, special keyboards  
-- **230_gpu** — mesa, vulkan, nvidia/amd/intel utils  
-- **240_audio** — pipewire, alsa, bluetooth audio  
-- **250_network** — networking tools beyond installer defaults (optional)  
+Drivers, firmware, power management. Run **before the desktop stack** so GPU/audio/input works.
+
+* **100\_firmware** — fwupd, microcode
+* **110\_power** — tlp, auto-cpufreq, thermald
+* **120\_input** — libinput, touchpads, special keyboards
+* **130\_gpu** — mesa, vulkan, nvidia/amd/intel utils
+* **140\_audio** — pipewire, alsa, bluetooth audio
+* **150\_network** — networking tools beyond installer defaults
+* **160\_devtools** — docker, podman, compilers (kernel-dependent tools)
 
 ---
 
-### 3xx — Desktop Stack
+### 2xx — Desktop Stack
+
 Windowing system, login manager, WM/DE, theming.
 
-- **300_display-server** — Xorg or Wayland base  
-- **310_login-manager** — SDDM, GDM, LightDM  
-- **320_window-manager** — i3, sway, hyprland, etc.  
-- **330_panels-bars** — polybar, waybar  
-- **340_fonts** — system/user fonts  
-- **350_theming** — GTK/Qt themes, cursors, icons  
+* **200\_display-server** — Xorg or Wayland base
+* **210\_login-manager** — SDDM, GDM, LightDM
+* **220\_window-manager** — i3, sway, hyprland, etc.
+* **230\_panels-bars** — polybar, waybar
+* **240\_theming** — GTK/Qt themes, cursors, icons
 
 ---
 
-### 4xx — Applications
+### 3xx — Applications
+
 Grouped broadly; gaps left for expansion.
 
-- **400_cli-tools** — shell (zsh/bash), tmux, fzf, ripgrep, etc.  
-- **420_editors** — vim/neovim, vscode, IDEs  
-- **440_browsers** — firefox, chromium  
-- **460_office** — libreoffice, PDF tools  
-- **480_media** — players, image viewers, codecs  
-- **490_devtools** — git, gh, compilers, docker/podman  
+* **300\_cli-tools** — shell (zsh/bash), tmux, fzf, ripgrep, etc.
+* **320\_editors** — vim/neovim, vscode, IDEs
+* **340\_browsers** — firefox, chromium
+* **360\_office** — libreoffice, PDF tools
+* **380\_media** — players, image viewers, codecs
 
 ---
 
-### 5xx — Dotfiles & User Config
+### 4xx — Dotfiles & User Config
+
 Glue that ties your repo/configs into place.
 
-- **500_dotfiles-core** — clone or update dotfiles repo  
-- **510_symlinks** — symlink configs to `$HOME` and `/etc`  
-- **520_services** — enable/start wanted systemd services  
-- **530_shell-env** — env vars, Xresources, autostarts  
+* **400\_dotfiles-core** — clone or update dotfiles repo
+* **410\_symlinks** — symlink configs to `$HOME` and `/etc`
+* **420\_services** — enable/start wanted systemd services
+* **430\_shell-env** — env vars, Xresources, autostarts
 
 ---
 
-### 6xx — Security & Policies
+### 5xx — Security & Policies
+
 Optional hardening, after system is otherwise usable.
 
-- **600_firewall** — ufw, nftables  
-- **610_audit** — auditd, advanced policies  
+* **500\_firewall** — ufw, nftables
+* **510\_audit** — auditd, advanced policies
 
 ---
 
-### 7xx — Extras / Ecosystems
+### 6xx — Extras / Ecosystems
+
 Nice-to-have, not base system.
 
-- **700_gaming** — steam, lutris, proton, wine  
-- **720_creative** — audio/video production, design tools  
-- **740_remote** — tailscale, syncthing, ssh extras  
+* **600\_gaming** — steam, lutris, proton, wine
+* **620\_creative** — audio/video production, design tools
+* **640\_remote** — tailscale, syncthing, ssh extras
 
 ---
 
 ## ✅ Recommended Run Order
 
-1. **1xx Core System**  
-2. **2xx Hardware & Platform**  
-3. **3xx Desktop Stack**  
-4. **4xx Applications**  
-5. **5xx Dotfiles & User Config**  
-6. **6xx Security & Policies**  
-7. **7xx Extras / Ecosystems**
+1. **0xx Core System**
+2. **1xx Hardware & Platform**
+3. **2xx Desktop Stack**
+4. **3xx Applications**
+5. **4xx Dotfiles & User Config**
+6. **5xx Security & Policies**
+7. **6xx Extras / Ecosystems**
 
-This ensures:  
-- Hardware (2xx) is configured **before** the desktop environment (3xx).  
-- Security/hardening (6xx) is applied **after** the system is working.  
+This ensures:
+
+* Hardware (1xx) is configured **before** the desktop environment (2xx).
+* Security/hardening (5xx) is applied **after** the system is working.
 
 ---
 
-
 ## 🛠 How to Add a Module
 
-1. Create a new folder under `modules/` with the correct number and name, e.g.: 
+1. Create a new folder under `modules/` with the correct number and name, e.g.:
 
-modules/320\_window-manager/module.py
-
-2. Implement an `install(run)` function inside `module.py`.  
-3. The `module_loader` will automatically discover and run it.  
+   ```
+   modules/220_window-manager/module.py
+   ```
+2. Implement an `install(run)` function inside `module.py`.
+3. The `module_loader` will automatically discover and run it.
 
 ---
 
 ## Example Tree
 
-
-modules/
-100\_core/
-module.py
-200\_firmware/
-module.py
-300\_display-server/
-module.py
-320\_window-manager/
-module.py
-400\_cli-tools/
-module.py
-500\_dotfiles-core/
-module.py
-510\_symlinks/
-module.py
-600\_firewall/
-module.py
-700\_gaming/
-module.py
-
 ```
-
+modules/
+000_core/
+  module.py
+020_system-defaults/
+  module.py
+100_firmware/
+  module.py
+130_gpu/
+  module.py
+200_display-server/
+  module.py
+220_window-manager/
+  module.py
+300_cli-tools/
+  module.py
+400_dotfiles-core/
+  module.py
+410_symlinks/
+  module.py
+500_firewall/
+  module.py
+600_gaming/
+  module.py
+```
