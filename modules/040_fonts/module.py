@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 040_fonts — System-wide Nerd Font defaults (Option A)
-Version: 1.0.0
+Version: 1.0.1 (fix: ensure fc-cache available on minimal installs)
 
 What this module does
 ---------------------
+- Installs prerequisites (fontconfig) so `fc-cache` exists on minimal systems.
 - Installs a Nerd Font family (JetBrainsMono Nerd Font) system-wide.
 - Installs Nerd Fonts Symbols for robust glyph/icon fallback.
 - Sets **JetBrainsMono Nerd Font** as the **system default for `monospace`** via Fontconfig.
@@ -105,7 +106,10 @@ def _write_local_conf(xml: str, run: Callable) -> bool:
             tmp_path = Path(tmp.name)
         _print_action(f"install -m 0644 {tmp_path} {FONTCONF_LOCAL}")
         res = run(["install", "-m", "0644", str(tmp_path), str(FONTCONF_LOCAL)], check=False, capture_output=True)
-        tmp_path.unlink(missing_ok=True)
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
         if res.returncode != 0:
             if res.stdout:
                 print(res.stdout.rstrip())
@@ -119,7 +123,7 @@ def _write_local_conf(xml: str, run: Callable) -> bool:
 
 
 def _enable_nerd_symbols(run: Callable) -> bool:
-    """Symlink 10-nerd-font-symbols.conf into /etc/fonts/conf.d/ if available."""
+    """Symlink 10-nerd-fonts-symbols.conf into /etc/fonts/conf.d/ if available."""
     try:
         if not NERD_SYMBOLS_AVAIL.exists():
             print(f"⚠️  Nerd Symbols fontconfig file not found: {NERD_SYMBOLS_AVAIL}")
@@ -139,7 +143,17 @@ def _enable_nerd_symbols(run: Callable) -> bool:
 
 
 def _refresh_cache(run: Callable) -> bool:
+    """
+    Refresh the font cache. If fc-cache is missing (very minimal base),
+    ensure fontconfig is installed or skip with a warning.
+    """
     try:
+        # Quick presence check (in case someone removed fontconfig after install)
+        res_chk = run(["bash", "-lc", "command -v fc-cache || true"], check=False, capture_output=True)
+        if "fc-cache" not in (res_chk.stdout or ""):
+            print("⚠️  'fc-cache' not found. Is 'fontconfig' installed?")
+            return False
+
         _print_action("fc-cache -f -v")
         res = run(["fc-cache", "-f", "-v"], check=False, capture_output=True)
         # fc-cache can be chatty; print on success/failure.
@@ -169,10 +183,11 @@ def install(run: Callable) -> bool:
     try:
         print("▶ [040_fonts] Installing and configuring system fonts (Nerd Font as monospace)…")
 
-        # 1) Install required fonts (system-wide)
+        # 1) Install required fonts + **fontconfig** so fc-cache exists on minimal installs
         packages = [
-            "ttf-jetbrains-mono-nerd",     # base monospace font
-            "ttf-nerd-fonts-symbols",      # symbols-only fallback for icons
+            "fontconfig",                 # provides fc-cache
+            "ttf-jetbrains-mono-nerd",    # base monospace font
+            "ttf-nerd-fonts-symbols",     # symbols-only fallback for icons
             # Optional: better emoji fallback (uncomment if desired)
             # "noto-fonts-emoji",
         ]
@@ -197,7 +212,8 @@ def install(run: Callable) -> bool:
 
         # 5) Refresh cache and verify
         if not _refresh_cache(run):
-            return False
+            # Still attempt verification; but warn so user can `sudo pacman -S fontconfig`
+            print("⚠️  Could not refresh font cache (fc-cache missing?). You can run: sudo pacman -S fontconfig && fc-cache -f -v")
         _verify(run)
 
         print("✔ [040_fonts] Font configuration complete. JetBrainsMono Nerd Font is the system monospace default.")
