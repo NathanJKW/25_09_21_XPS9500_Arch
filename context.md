@@ -578,7 +578,7 @@ def _refresh_mirrors(run: Callable) -> bool:
             "--protocol", "https",
             "--age", "12",                 # seen as 'last synced within N hours'
             "--fastest", "15",             # keep N fastest mirrors
-            "--download-timeout", "5",     # avoid premature timeouts
+            "--download-timeout", "20",     # avoid premature timeouts
             "--save", "/etc/pacman.d/mirrorlist",
         ]
         print("$ " + " ".join(cmd))
@@ -1246,180 +1246,95 @@ def install(run: Callable) -> bool:
 
 
 --- modules/100_firmware/module.py ---
-#!/usr/bin/env python3
 """
-modules/100_firmware/module.py
-Firmware & Microcode Base
+100_firmware/module.py
 
-Scope
------
-- CPU microcode (Intel)
-- Core device firmware packages
-- Sound Open Firmware (SoF) stack for Intel cAVS
-- Firmware update stack (fwupd) + Thunderbolt (bolt)
-- NVMe tools (for visibility/updates)
-- Gentle GRUB regen so microcode gets picked up
-- Post-install visibility checks (non-fatal)
-
-Idempotency & Safety
---------------------
-- Package installs go through utils.pacman.install_packages (uses --needed)
-- Services are enabled with systemctl --now (ok if already enabled)
-- We DO NOT auto-apply firmware updates; we only surface them
-- We DO NOT modify systemd-boot/UKI entries automatically; we log guidance
+Installs base firmware + microcode packages and enables tooling
+to keep device firmware updated. Also surfaces available updates
+at the end so users can take immediate action.
 """
-from __future__ import annotations
 
-from pathlib import Path
-from typing import Callable, Iterable, Optional
-import shutil
-import subprocess
+from typing import Callable
 
-from utils.pacman import install_packages
-
-
-PKGS: list[str] = [
-    # Core firmware & microcode
+# List of core firmware/microcode/utilities
+PACKAGES = [
     "linux-firmware",
     "intel-ucode",
-    # Helpful tools
-    "iucode-tool",
     "fwupd",
-    "bolt",
+    "bolt",       # Thunderbolt manager (tbtadm/boltctl)
     "nvme-cli",
-    # Audio firmware/config for Intel cAVS/SoF devices
-    "sof-firmware",
-    "alsa-ucm-conf",
 ]
 
 
-def _print_action(text: str) -> None:
-    print(f"$ {text}")
-
-
-def _print_warn(text: str) -> None:
-    print(f"⚠️  {text}")
-
-
-def _print_ok(text: str) -> None:
-    print(f"✔ {text}")
-
-
-def _svc(run: Callable, *args: str) -> bool:
-    """Run a systemctl command via the sudo runner, capture output, never raise."""
-    try:
-        _print_action("systemctl " + " ".join(args))
-        res = run(["systemctl", *args], check=False, capture_output=True)
-        if res.stdout:
-            print(res.stdout.rstrip())
+def _install_packages(run: Callable) -> bool:
+    cmd = ["pacman", "-S", "--needed", "--noconfirm", *PACKAGES]
+    print("$", " ".join(cmd))
+    res = run(cmd, check=False, capture_output=True)
+    if res.returncode != 0:
+        print("❌ Failed to install firmware packages")
         if res.stderr:
-            print(res.stderr.rstrip())
-        return res.returncode == 0
-    except Exception as exc:
-        _print_warn(f"systemctl failed: {exc}")
+            print(res.stderr)
         return False
+    return True
 
 
-def _have(path_or_prog: str) -> bool:
-    p = Path(path_or_prog)
-    if p.exists():
-        return True
-    return shutil.which(path_or_prog) is not None
+def _enable_fwupd(run: Callable) -> bool:
+    cmd = ["systemctl", "enable", "--now", "fwupd.service"]
+    print("$", " ".join(cmd))
+    return run(cmd, check=False).returncode == 0
 
 
-def _grub_cfg_path() -> Optional[Path]:
-    # Common GRUB cfg location on Arch
-    p = Path("/boot/grub/grub.cfg")
-    return p if p.exists() else None
-
-
-def _grub_regenerate(run: Callable) -> None:
-    """Regenerate GRUB config if GRUB appears present (safe op)."""
-    if not _have("grub-mkconfig"):
-        _print_warn("GRUB not detected (grub-mkconfig missing); skipping GRUB regen.")
-        return
-    cfg_out = "/boot/grub/grub.cfg"
-    _print_action(f"grub-mkconfig -o {cfg_out}")
-    res = run(["grub-mkconfig", "-o", cfg_out], check=False, capture_output=True)
+def _check_fw_updates(run: Callable) -> None:
+    print("$ fwupdmgr get-updates")
+    res = run(["fwupdmgr", "get-updates"], check=False, capture_output=True)
     if res.stdout:
         print(res.stdout.rstrip())
     if res.stderr:
         print(res.stderr.rstrip())
+
+
+def _regenerate_grub_if_present(run: Callable) -> None:
+    # Only if grub-mkconfig is present
+    res = run(["bash", "-lc", "command -v grub-mkconfig"], check=False, capture_output=True)
     if res.returncode == 0:
-        _print_ok("GRUB configuration regenerated (microcode will be included if installed).")
-    else:
-        _print_warn("Failed to regenerate GRUB config. Microcode may not load until you fix GRUB.")
+        print("$ sudo -n grub-mkconfig -o /boot/grub/grub.cfg")
+        run(["grub-mkconfig", "-o", "/boot/grub/grub.cfg"], check=False)
 
 
-def _run_user(cmd: Iterable[str]) -> None:
-    """Run a harmless, non-privileged command as the current user and print output."""
+def _nvme_device_present() -> bool:
     try:
-        _print_action(" ".join(cmd))
-        res = subprocess.run(list(cmd), check=False, capture_output=True, text=True)
+        import os
+        return any(name.startswith("nvme") for name in os.listdir("/dev"))
+    except Exception:
+        return False
+
+
+def install(run: Callable) -> bool:
+    print("### [100] Firmware and Microcode")
+
+    if not _install_packages(run):
+        return False
+
+    if not _enable_fwupd(run):
+        print("⚠️  Failed to enable fwupd.service; you may need to enable manually.")
+
+    # Print updates so user can act immediately
+    _check_fw_updates(run)
+
+    # If grub is present, regen config to pick up new microcode
+    _regenerate_grub_if_present(run)
+
+    # Show nvme list if device exists
+    if _nvme_device_present():
+        # Use sudo-runner for consistent output even if some subcommands need root
+        print("$ nvme list")
+        res = run(["nvme", "list"], check=False, capture_output=True)
         if res.stdout:
             print(res.stdout.rstrip())
         if res.stderr:
             print(res.stderr.rstrip())
-    except Exception as exc:
-        _print_warn(f"Command failed to run: {' '.join(cmd)}: {exc}")
 
-
-def _nvme_device_present() -> bool:
-    # Quick heuristic: does /dev/nvme0 exist?
-    return Path("/dev/nvme0").exists()
-
-
-def install(run: Callable) -> bool:
-    try:
-        print("▶ [100_firmware] Installing firmware, microcode, and update stack…")
-
-        # 1) Packages (idempotent)
-        if not install_packages(PKGS, run):
-            return False
-
-        # 2) Enable services
-        _svc(run, "enable", "--now", "fwupd.service")
-        _svc(run, "enable", "--now", "bolt.service")
-
-        # 3) GRUB regen (safe) — only if GRUB appears present
-        if _grub_cfg_path() is not None or _have("grub-mkconfig"):
-            _grub_regenerate(run)
-        else:
-            _print_warn(
-                "GRUB not detected. If you use systemd-boot/UKI, ensure intel-ucode is embedded or an initrd entry exists."
-            )
-
-        # 4) Post-install visibility (non-fatal)
-        # fwupd metadata + available updates (runs as user)
-        if _have("fwupdmgr"):
-            _run_user(["fwupdmgr", "refresh", "--force"])
-            _run_user(["fwupdmgr", "get-devices"])
-            _run_user(["fwupdmgr", "get-updates"])  # may list BIOS/TB/NVMe updates
-        else:
-            _print_warn("fwupdmgr not found in PATH — skip listing firmware updates.")
-
-        # NVMe visibility
-        if _nvme_device_present():
-            # Use sudo-runner for consistent output even if some subcommands need root
-            _print_action("sudo -n nvme list")
-            res = run(["nvme", "list"], check=False, capture_output=True)
-            if res.stdout:
-                print(res.stdout.rstrip())
-            if res.stderr:
-                print(res.stderr.rstrip())
-        else:
-            _print_warn("No /dev/nvme0 detected; skipping nvme list.")
-
-        print("ℹ️  Notes:")
-        print("  - We do NOT auto-apply firmware updates. Use 'fwupdmgr upgrade' and reboot when convenient.")
-        print("  - For systemd-boot/UKI setups, verify your microcode is included (e.g., in mkinitcpio or UKI build).")
-
-        _print_ok("[100_firmware] Completed.")
-        return True
-
-    except Exception as exc:
-        print(f"ERROR: 100_firmware.install failed: {exc}")
-        return False
+    return True
 
 
 --- modules/110__power/module.py ---
@@ -1731,7 +1646,7 @@ ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0302
 
 MODPROBE_CONTENT = """\
 # Deeper NVIDIA runtime power management for Turing Optimus notebooks
-options nvidia "NVreg_DynamicPowerManagement=0x02"
+options nvidia NVreg_DynamicPowerManagement=0x02
 # If you encounter odd D3/runtime PM issues on specific driver/firmware combos, try the more conservative:
 # options nvidia NVreg_DynamicPowerManagement=0x01
 """
@@ -1896,7 +1811,7 @@ def install(run: Callable) -> bool:
 #!/usr/bin/env python3
 """
 140_audio — PipeWire/WirePlumber + SOF firmware (Intel cAVS) with optional Bluetooth
-Version: 1.0.0
+Version: 1.0.1
 
 What this module does
 ---------------------
@@ -1913,6 +1828,13 @@ Environment toggles
 Idempotency
 -----------
 - pacman uses --needed; config files written with install -D; systemd enable/now is safe to repeat.
+
+Notes / Fixes in this version
+-----------------------------
+- Clarified that `wpctl` is provided by **WirePlumber** (not pipewire-cli).
+- Hardened verification: treat `wpctl status` success when a non-null output node
+  (e.g., `alsa_output` or `bluez_output`) is present; avoid PulseAudio-specific tokens.
+- Avoid duplicate Bluetooth service enablement here (150_network is the source of truth).
 """
 
 from __future__ import annotations
@@ -1997,11 +1919,13 @@ def _enable_system_units(units: list[str], run: Callable) -> bool:
     return ok
 
 
+# ------------------------------- verification --------------------------------
+
 def _verify_stack() -> bool:
     """
     Basic verification:
     - pactl info -> Server Name mentions PipeWire
-    - wpctl status -> has at least one Sink that is not 'auto_null' (best-effort)
+    - wpctl status -> has at least one output node (alsa_output/bluez_output) not 'auto_null' (best-effort)
     """
     try:
         pi = _run_user(["pactl", "info"], check=False)
@@ -2018,20 +1942,20 @@ def _verify_stack() -> bool:
         print("❌ Verification failed: 'pactl' not found.")
         return False
 
-    # wpctl status check (best-effort)
+    # wpctl status check (best-effort, robust to formatting changes)
     try:
         ws = _run_user(["wpctl", "status"], check=False)
         if ws.returncode == 0 and ws.stdout:
-            has_device = any(
-                ("Sinks:" in line or "Audio" in line) and "auto_null" not in line
+            has_output = any(
+                ("alsa_output" in line or "bluez_output" in line) and "auto_null" not in line
                 for line in ws.stdout.splitlines()
             )
-            if not has_device:
-                print("⚠️  Verification: wpctl did not show a non-null sink; continuing but mark as warning.")
+            if not has_output:
+                print("⚠️  Verification: wpctl did not list a usable output (non-null).")
         else:
             print("⚠️  Verification: wpctl status unavailable.")
     except FileNotFoundError:
-        print("⚠️  Verification: 'wpctl' not found (pipewire-cli not installed?)")
+        print("⚠️  Verification: 'wpctl' not found (is WirePlumber installed?)")
 
     return True
 
@@ -2050,13 +1974,12 @@ def install(run: Callable) -> bool:
             "pipewire-alsa",
             "pipewire-pulse",
             "pipewire-jack",
-            "wireplumber",
+            "wireplumber",     # provides 'wpctl'
             "alsa-utils",
             "alsa-ucm-conf",
             "sof-firmware",
             # handy mixers/inspectors
             "pavucontrol",
-            #"pipewire-cli",  # provides wpctl
         ]
 
         bt_pkgs = ["bluez", "bluez-utils"] if enable_bt else []
@@ -2113,10 +2036,8 @@ monitor.bluez.properties = {
             # Not fatal; the services will usually start on login, but we try to be explicit.
             _print("⚠️  Could not enable one or more user services. Continuing.")
 
-        # Enable system Bluetooth daemon if requested
-        if enable_bt:
-            if not _enable_system_units(["bluetooth.service"], run):
-                _print("⚠️  Could not enable 'bluetooth.service'. You can enable it later with: sudo systemctl enable --now bluetooth.service")
+        # Do NOT enable bluetooth.service here to avoid duplication with 150_network.
+        # (150_network is the source of truth for BT service enablement.)
 
         # Quick verification + sample test output (best effort)
         if not _verify_stack():
@@ -2568,120 +2489,71 @@ Notes:
 
 
 --- modules/210_login_manager/module.py ---
-#!/usr/bin/env python3
 """
-210_login_manager — SDDM (Qt6) with local dark theme (unattended + session-safe)
+210_login_manager/module.py
 
-What this module does
----------------------
-- Installs SDDM and required Qt6 packages.
-- Copies local theme from ./theme/ -> /usr/share/sddm/themes/<THEME_NAME>.
-- Backs up & removes old theme-related SDDM configs, then writes /etc/sddm.conf.d/10-theme.conf.
-- Service changes are SAFE:
-    * If a display manager is currently active, SKIP touching services (to avoid logging you out).
-    * If no DM is active (e.g., running from a TTY), enable SDDM for next boot and disable/mask LightDM.
+Set up SDDM as the display/login manager.
 
-Idempotency & Safety
---------------------
-- pacman installs via utils.pacman.install_packages (uses --needed).
-- Config written atomically via install -D; existing theme dir backed up per run.
-- No live start/stop and no target switch during the run.
+- Installs sddm (Qt6 build).
+- Enables it as a system service.
+- Deploys a custom theme if present under modules/210_login_manager/theme/
+- Configures /etc/sddm.conf.d/10-theme.conf to point at that theme if deployed.
+
+Notes:
+- Avoids enabling the service if we detect we are already in a running graphical
+  session (to prevent lockouts while bootstrapping).
 """
 
-from __future__ import annotations
-
-import shlex
+import shutil
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from utils.pacman import install_packages
 
-# ----------------------------- constants -----------------------------
-
-THEME_NAME = "simple-sddm-2"  # destination folder name under /usr/share/sddm/themes/
-MODULE_DIR = Path(__file__).resolve().parent
-THEME_SRC = MODULE_DIR / "theme"                       # theme files live directly here
-THEME_DST = Path("/usr/share/sddm/themes") / THEME_NAME
-
+THEME_SRC = Path(__file__).parent / "theme"
+THEME_DST = Path("/usr/share/sddm/themes")
 CONF_DIR = Path("/etc/sddm.conf.d")
 CONF_FILE = CONF_DIR / "10-theme.conf"
-LEGACY_CONF = Path("/etc/sddm.conf")
 
-SDDM_CONF_CONTENT = f"""# Installed by 210_login_manager
-[Theme]
-Current={THEME_NAME}
-
-[General]
-# Enable Qt virtual keyboard (commonly expected by Qt6 themes)
-InputMethod=qtvirtualkeyboard
+SDDM_CONF_CONTENT = """[Theme]
+Current=arch-bootstrap
 """
 
-# ----------------------------- helpers -----------------------------
+def _print_action(msg: str) -> None:
+    print(f"$ {msg}")
 
-def _print_action(text: str) -> None:
-    print(f"$ {text}")
-
-def _run_ok(run: Callable, cmd: list[str], *, input_text: Optional[str] = None) -> bool:
-    _print_action(" ".join(shlex.quote(c) for c in cmd))
-    res = run(cmd, check=False, capture_output=True, input_text=input_text)
-    if res.stdout:
-        print(res.stdout.rstrip())
-    if res.stderr:
-        print(res.stderr.rstrip())
-    return res.returncode == 0
-
-def _run_user(cmd: list[str]) -> None:
-    """Run a harmless command as the invoking user (no sudo)."""
-    print("$ " + " ".join(cmd))
-    res = subprocess.run(cmd, check=False, text=True, capture_output=True)
-    if res.stdout:
-        print(res.stdout.rstrip())
-    if res.stderr:
-        print(res.stderr.rstrip())
-
-def _file_contains(run: Callable, path: Path, pattern: str) -> bool:
-    """True if file exists and matches pattern (extended regex)."""
-    res = run(
-        ["bash", "-lc", f'[[ -f {shlex.quote(str(path))} ]] && grep -Eq {shlex.quote(pattern)} {shlex.quote(str(path))}'],
-        check=False
-    )
-    return res.returncode == 0
-
-def _clean_old_theme_confs(run: Callable) -> bool:
-    """
-    Back up & remove old/conflicting SDDM theme settings:
-      - /etc/sddm.conf.d/*.conf that contain [Theme] or Current=
-      - legacy /etc/sddm.conf if it contains [Theme]/Current=
-    """
-    dropins = rf"""
-set -e
-dir={shlex.quote(str(CONF_DIR))}
-ts=$(date +%Y%m%d-%H%M%S)
-backup="$dir/.backup-$ts"
-mkdir -p "$backup"
-shopt -s nullglob
-for f in "$dir"/*.conf; do
-  if grep -Eq '^\[Theme\]|^Current=' "$f"; then
-    mv "$f" "$backup"/
-  fi
-done
-"""
-    if not _run_ok(run, ["bash", "-lc", dropins]):
+def _run_ok(run: Callable, cmd: list[str], input_text: str | None = None) -> bool:
+    try:
+        result = run(cmd, input=input_text, text=True, capture_output=True)
+        if result.returncode != 0:
+            print(result.stderr or f"Command failed: {' '.join(cmd)}")
+            return False
+        return True
+    except Exception as e:
+        print(f"ERROR running {' '.join(cmd)}: {e}")
         return False
 
-    if _file_contains(run, LEGACY_CONF, r'^\[Theme\]|^Current='):
-        legacy = rf"""
-set -e
-f={shlex.quote(str(LEGACY_CONF))}
-ts=$(date +%Y%m%d-%H%M%S)
-backup=$(dirname "$f")/.backup-$ts
-mkdir -p "$backup"
-mv "$f" "$backup"/
-"""
-        if not _run_ok(run, ["bash", "-lc", legacy]):
-            return False
-    return True
+def _backup_then_replace_theme(run: Callable) -> bool:
+    if not THEME_SRC.exists() or not THEME_SRC.is_dir():
+        print(f"ℹ️  Theme source not found: {THEME_SRC}")
+        print("    Skipping theme deployment; SDDM will use its default theme.")
+        return True
+
+    dst = THEME_DST / "arch-bootstrap"
+    if dst.exists():
+        backup = dst.with_suffix(".bak")
+        _print_action(f"Backing up existing theme at {dst} -> {backup}")
+        run(["cp", "-a", str(dst), str(backup)], check=False)
+
+    _print_action(f"Installing custom theme -> {dst}")
+    try:
+        run(["mkdir", "-p", str(THEME_DST)], check=False)
+        run(["cp", "-a", str(THEME_SRC), str(dst)], check=False)
+        return True
+    except Exception as e:
+        print(f"ERROR copying theme: {e}")
+        return False
 
 def _write_conf(run: Callable) -> bool:
     return _run_ok(
@@ -2690,123 +2562,49 @@ def _write_conf(run: Callable) -> bool:
         input_text=SDDM_CONF_CONTENT,
     )
 
-def _backup_then_replace_theme(run: Callable) -> bool:
-    """
-    Copy ./theme -> /usr/share/sddm/themes/<THEME_NAME>
-    If destination exists, back it up under /usr/share/sddm/themes/.backup-<timestamp>/
-    """
-    if not THEME_SRC.exists() or not THEME_SRC.is_dir():
-        print(f"ERROR: Missing theme source directory: {THEME_SRC}")
-        print("       Put your theme files directly under modules/210_login_manager/theme/")
+def _file_exists(path: Path) -> bool:
+    return path.exists()
+
+def _file_contains(run: Callable, path: Path, pattern: str) -> bool:
+    if not path.exists():
+        return False
+    try:
+        result = run(["grep", "-q", pattern, str(path)], check=False)
+        return result.returncode == 0
+    except Exception:
         return False
 
-    script = rf"""
-set -e
-src={shlex.quote(str(THEME_SRC))}
-dst={shlex.quote(str(THEME_DST))}
-parent=$(dirname "$dst")
-mkdir -p "$parent"
-if [ -e "$dst" ] || [ -L "$dst" ]; then
-  ts=$(date +%Y%m%d-%H%M%S)
-  mkdir -p "$parent/.backup-$ts"
-  mv "$dst" "$parent/.backup-$ts"/ 2>/dev/null || true
-fi
-cp -a "$src" "$dst"
-"""
-    return _run_ok(run, ["bash", "-lc", script])
-
-def _display_manager_active(run: Callable) -> bool:
-    """
-    Detect if any display manager is currently active.
-    We check the generic display-manager.service and common DMs.
-    """
-    checks = [
-        ["systemctl", "is-active", "--quiet", "display-manager.service"],
-        ["systemctl", "is-active", "--quiet", "sddm.service"],
-        ["systemctl", "is-active", "--quiet", "lightdm.service"],
-        ["systemctl", "is-active", "--quiet", "gdm.service"],
-        ["systemctl", "is-active", "--quiet", "ly.service"],
-    ]
-    for cmd in checks:
-        res = run(cmd, check=False)
-        if res.returncode == 0:
-            return True
-    return False
-
-def _configure_services_safely(run: Callable) -> bool:
-    """
-    Safe service configuration:
-      - If a display manager is currently active, SKIP touching services to avoid logout.
-      - Otherwise (TTY/new install), disable LightDM, enable SDDM for next boot.
-    """
-    if _display_manager_active(run):
-        print("ℹ️  A display manager is currently active; skipping service changes to avoid logging you out.")
-        print("    SDDM + theme are installed. After provisioning, you can switch with:")
-        print("      sudo systemctl disable lightdm.service && sudo systemctl mask lightdm.service")
-        print("      sudo systemctl unmask sddm.service && sudo systemctl enable sddm.service")
-        print("      sudo reboot")
-        return True
-
-    ok = True
-    _run_ok(run, ["systemctl", "disable", "lightdm.service"])
-    _run_ok(run, ["systemctl", "mask", "lightdm.service"])
-    _run_ok(run, ["systemctl", "unmask", "sddm.service"])
-    if not _run_ok(run, ["systemctl", "enable", "sddm.service"]):
-        ok = False
-    return ok
-
-# ----------------------------- main entry -----------------------------
-
 def install(run: Callable) -> bool:
+    # 1) Install sddm
+    if not install_packages(["sddm"], run):
+        return False
+
+    # 2) Enable service (skip if in running graphical session)
     try:
-        print("▶ [210_login_manager] Installing SDDM + dark theme (session-safe)…")
+        if "DISPLAY" in dict(run(["env"], capture_output=True, text=True).stdout.splitlines()):
+            print("ℹ️  Detected running graphical session; not enabling sddm now.")
+        else:
+            _print_action("systemctl enable sddm.service")
+            run(["systemctl", "enable", "sddm.service"], check=False)
+    except Exception:
+        _print_action("systemctl enable sddm.service")
+        run(["systemctl", "enable", "sddm.service"], check=False)
 
-        # 1) Packages
-        pkgs = [
-            "sddm",
-            "qt6-svg",
-            "qt6-virtualkeyboard",
-            "qt6-multimedia-ffmpeg",
-            "qt6-declarative",
-        ]
-        if not install_packages(pkgs, run):
-            print("ERROR: Failed to install required packages.")
-            return False
+    # 3) Deploy theme (optional)
+    if not _backup_then_replace_theme(run):
+        print("ERROR: Failed during theme deployment step.")
+        return False
 
-        # 2) Ensure drop-in dir, clean old theme configs
-        if not _run_ok(run, ["mkdir", "-p", str(CONF_DIR)]):
-            return False
-        if not _clean_old_theme_confs(run):
-            print("ERROR: Failed to clean old SDDM theme configs.")
-            return False
-
-        # 3) Deploy theme
-        if not _backup_then_replace_theme(run):
-            print("ERROR: Failed to deploy theme to /usr/share/sddm/themes/")
-            return False
-
-        # 4) Write authoritative theme drop-in
+    # 4) Write authoritative theme drop-in only if theme was actually deployed
+    theme_installed = (THEME_DST / "arch-bootstrap").exists()
+    if theme_installed:
         if not _write_conf(run):
             print("ERROR: Failed to write SDDM theme drop-in.")
             return False
+    else:
+        print("ℹ️  No custom theme present; skipping /etc/sddm.conf.d/10-theme.conf write.")
 
-        # 5) Configure services safely (no live switch; skip if a DM is active)
-        if not _configure_services_safely(run):
-            print("ERROR: Failed to configure display manager services.")
-            return False
-
-        # 6) Best-effort visibility (non-fatal; run as user to avoid sudo hang)
-        _run_user(["bash", "-lc", "pacman -Q sddm || true"])
-        _run_user(["bash", "-lc", "command -v sddm >/dev/null 2>&1 && sddm --version || true"])
-
-        print("✔ [210_login_manager] Ready. Reboot (or switch later) to use SDDM with your dark theme.")
-        print(f"   Theme: {THEME_DST}")
-        print(f"   Config: {CONF_FILE}")
-        return True
-
-    except Exception as exc:
-        print(f"ERROR: 210_login_manager.install failed: {exc}")
-        return False
+    return True
 
 
 --- modules/220_window_manager/module.py ---
@@ -3196,6 +2994,7 @@ CURSOR_THEME_NAME = "Bibata-Modern-Ice"     # AUR: bibata-cursor-theme
 CURSOR_FALLBACK = "Adwaita"                 # safe fallback if Bibata missing
 QT_STYLE = "kvantum"
 KVANTUM_THEME_NAME = "Nordic-Darker"        # AUR: kvantum-theme-nordic
+GTK_FALLBACK_THEME = "Adwaita-dark"         # repo fallback if Nordic missing
 
 def _run_ok(run: Callable, cmd: list[str], *, input_text: Optional[str] = None) -> bool:
     print("$ " + " ".join(shlex.quote(c) for c in cmd))
@@ -3212,9 +3011,9 @@ def _path_exists(run: Callable, path: str) -> bool:
 
 # ---------- config writers ----------
 
-def _apply_gtk_defaults(run: Callable) -> bool:
+def _apply_gtk_defaults(run: Callable, gtk_theme_name: str) -> bool:
     gtk = f"""[Settings]
-gtk-theme-name={GTK_THEME_NAME}
+gtk-theme-name={gtk_theme_name}
 gtk-icon-theme-name={ICON_THEME_NAME}
 gtk-application-prefer-dark-theme=1
 """
@@ -3237,7 +3036,11 @@ icon_theme={ICON_THEME_NAME}
            _write_file(run, "/etc/xdg/qt6ct/qt6ct.conf", qt_common)
 
 def _apply_kvantum_theme(run: Callable, theme_name: str) -> bool:
-    if not (_path_exists(run, "/usr/bin/kvantummanager") or _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")):
+    # Require engine AND theme presence to write config; otherwise skip silently.
+    engine_present = _path_exists(run, "/usr/bin/kvantummanager") or \
+                     _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")
+    theme_present = _path_exists(run, f"/usr/share/Kvantum/{theme_name}")
+    if not (engine_present and theme_present):
         return True
     kv_cfg = f"[General]\ntheme={theme_name}\n"
     return _write_file(run, "/etc/xdg/Kvantum/kvantum.kvconfig", kv_cfg)
@@ -3280,6 +3083,10 @@ def install(run: Callable) -> bool:
 
         # Write GTK defaults
         if not _apply_gtk_defaults(run):
+        # Choose GTK theme based on presence; fallback to repo theme if AUR Nordic missing
+            nordic_present = _path_exists(run, "/usr/share/themes/Nordic")
+            gtk_to_set = GTK_THEME_NAME if nordic_present else GTK_FALLBACK_THEME
+        if not _apply_gtk_defaults(run, gtk_theme_name=gtk_to_set):
             print("❌ Failed writing GTK defaults.")
             return False
 
@@ -3536,96 +3343,59 @@ finally:
     close()
 """
 
-from __future__ import annotations
-
-from typing import Callable, Iterable, List
+from typing import List, Callable
 import sys
 
 
-def _print_action(command_like: str) -> None:
-    """Print a shell-like command to the terminal to show what is happening."""
-    print(f"$ {command_like}")
+def _print_action(cmd: str) -> None:
+    print(f"$ {cmd}")
 
 
-def _print_error(message: str) -> None:
-    """Print a clear error message to stderr so it stands out in logs."""
-    print(f"ERROR: {message}", file=sys.stderr)
+def _print_error(msg: str) -> None:
+    print(f"ERROR: {msg}", file=sys.stderr)
 
 
-def _join(cmd: Iterable[str]) -> str:
-    """Join a command list into a readable shell-like string (for logging only)."""
-    return " ".join(str(part) for part in cmd)
+def _join(cmd: List[str]) -> str:
+    return " ".join(cmd)
 
 
 def install_packages(packages: List[str], run: Callable) -> bool:
     """
-    Install one or more packages using pacman in an idempotent way.
+    Install the given packages with pacman if not already present.
 
-    Arguments:
-        packages:
-            A list of package names (strings), e.g., ["vim", "git", "curl"].
-        run:
-            The sudo runner callable returned by `start_sudo_session()`.
-            It must accept a list[str] command and execute it with sudo.
-
-    Returns:
-        True if the installation command completed successfully, False otherwise.
-
-    Behavior:
-        - Treats empty input as a successful no-op.
-        - Uses 'pacman -S --needed --noconfirm' to avoid reinstalling present packages.
-        - Prints actions, captures and prints output on errors.
+    Uses --needed and --noconfirm. Runs pacman under the provided `run`
+    (which already wraps sudo).
     """
-    try:
-        # Sanitize input first: drop non-strings/empties; allow empty list as no-op.
-        cleaned = [p.strip() for p in packages if isinstance(p, str) and p.strip()]
-        if not cleaned:
-            _print_action("pacman -S --needed --noconfirm  # (no packages provided; nothing to do)")
-            return True
+    if not packages:
+        return True
 
-        cmd = ["pacman", "-S", "--needed", "--noconfirm", *cleaned]
-        _print_action(_join(cmd))
+    cleaned = [pkg.strip() for pkg in packages if pkg and pkg.strip()]
+    if not cleaned:
+        return True
 
-        # Use the sudo-session runner (executes `sudo -n <cmd>` under the hood).
-        result = run(cmd, check=False, capture_output=False)
+    cmd = ["pacman", "-S", "--needed", "--noconfirm", *cleaned]
+    _print_action(_join(cmd))
 
-        if result.returncode != 0:
-            _print_error("pacman failed with a non-zero exit status.")
-            if result.stdout:
-                print(result.stdout.rstrip())
-            if result.stderr:
-                _print_error(result.stderr.rstrip())
-            return False
+    # Capture output so we can show diagnostics if it fails.
+    result = run(cmd, check=False, capture_output=True)
 
-        # On success, print any stdout (pacman can be chatty).
+    if result.returncode != 0:
+        _print_error("pacman failed with a non-zero exit status.")
         if result.stdout:
             print(result.stdout.rstrip())
         if result.stderr:
-            # pacman may warn to stderr even on success.
-            print(result.stderr.rstrip(), file=sys.stderr)
-
-        return True
-
-    except Exception as exc:
-        _print_error(f"Unexpected error running pacman: {exc}")
+            _print_error(result.stderr.rstrip())
         return False
 
+    # On success, pacman usually prints progress bars directly; stdout/stderr
+    # may be empty. We don’t spam unless something is useful.
+    if result.stdout:
+        print(result.stdout.rstrip())
+    if result.stderr:
+        # pacman sometimes warns to stderr even on success
+        print(result.stderr.rstrip(), file=sys.stderr)
 
-# Backward-compat alias for code that imported the old name.
-installpackage = install_packages
-
-
-if __name__ == "__main__":
-    # Demonstration of usage with the sudo session.
-    from utils.sudo_session import start_sudo_session
-
-    run, close = start_sudo_session()
-    try:
-        print("👟 Demo: installing 'htop' (idempotent).")
-        success = install_packages(["htop"], run)
-        print(f"Result: {'success' if success else 'failure'}")
-    finally:
-        close()
+    return True
 
 
 --- utils/sudo_session.py ---

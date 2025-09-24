@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 """
 140_audio — PipeWire/WirePlumber + SOF firmware (Intel cAVS) with optional Bluetooth
-Version: 1.0.0
+Version: 1.0.1
 
 What this module does
 ---------------------
@@ -19,6 +19,13 @@ Environment toggles
 Idempotency
 -----------
 - pacman uses --needed; config files written with install -D; systemd enable/now is safe to repeat.
+
+Notes / Fixes in this version
+-----------------------------
+- Clarified that `wpctl` is provided by **WirePlumber** (not pipewire-cli).
+- Hardened verification: treat `wpctl status` success when a non-null output node
+  (e.g., `alsa_output` or `bluez_output`) is present; avoid PulseAudio-specific tokens.
+- Avoid duplicate Bluetooth service enablement here (150_network is the source of truth).
 """
 
 from __future__ import annotations
@@ -103,11 +110,13 @@ def _enable_system_units(units: list[str], run: Callable) -> bool:
     return ok
 
 
+# ------------------------------- verification --------------------------------
+
 def _verify_stack() -> bool:
     """
     Basic verification:
     - pactl info -> Server Name mentions PipeWire
-    - wpctl status -> has at least one Sink that is not 'auto_null' (best-effort)
+    - wpctl status -> has at least one output node (alsa_output/bluez_output) not 'auto_null' (best-effort)
     """
     try:
         pi = _run_user(["pactl", "info"], check=False)
@@ -124,20 +133,20 @@ def _verify_stack() -> bool:
         print("❌ Verification failed: 'pactl' not found.")
         return False
 
-    # wpctl status check (best-effort)
+    # wpctl status check (best-effort, robust to formatting changes)
     try:
         ws = _run_user(["wpctl", "status"], check=False)
         if ws.returncode == 0 and ws.stdout:
-            has_device = any(
-                ("Sinks:" in line or "Audio" in line) and "auto_null" not in line
+            has_output = any(
+                ("alsa_output" in line or "bluez_output" in line) and "auto_null" not in line
                 for line in ws.stdout.splitlines()
             )
-            if not has_device:
-                print("⚠️  Verification: wpctl did not show a non-null sink; continuing but mark as warning.")
+            if not has_output:
+                print("⚠️  Verification: wpctl did not list a usable output (non-null).")
         else:
             print("⚠️  Verification: wpctl status unavailable.")
     except FileNotFoundError:
-        print("⚠️  Verification: 'wpctl' not found (pipewire-cli not installed?)")
+        print("⚠️  Verification: 'wpctl' not found (is WirePlumber installed?)")
 
     return True
 
@@ -156,13 +165,12 @@ def install(run: Callable) -> bool:
             "pipewire-alsa",
             "pipewire-pulse",
             "pipewire-jack",
-            "wireplumber",
+            "wireplumber",     # provides 'wpctl'
             "alsa-utils",
             "alsa-ucm-conf",
             "sof-firmware",
             # handy mixers/inspectors
             "pavucontrol",
-            #"pipewire-cli",  # provides wpctl
         ]
 
         bt_pkgs = ["bluez", "bluez-utils"] if enable_bt else []
@@ -219,10 +227,8 @@ monitor.bluez.properties = {
             # Not fatal; the services will usually start on login, but we try to be explicit.
             _print("⚠️  Could not enable one or more user services. Continuing.")
 
-        # Enable system Bluetooth daemon if requested
-        if enable_bt:
-            if not _enable_system_units(["bluetooth.service"], run):
-                _print("⚠️  Could not enable 'bluetooth.service'. You can enable it later with: sudo systemctl enable --now bluetooth.service")
+        # Do NOT enable bluetooth.service here to avoid duplication with 150_network.
+        # (150_network is the source of truth for BT service enablement.)
 
         # Quick verification + sample test output (best effort)
         if not _verify_stack():

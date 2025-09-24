@@ -38,93 +38,56 @@ finally:
     close()
 """
 
-from __future__ import annotations
-
-from typing import Callable, Iterable, List
+from typing import List, Callable
 import sys
 
 
-def _print_action(command_like: str) -> None:
-    """Print a shell-like command to the terminal to show what is happening."""
-    print(f"$ {command_like}")
+def _print_action(cmd: str) -> None:
+    print(f"$ {cmd}")
 
 
-def _print_error(message: str) -> None:
-    """Print a clear error message to stderr so it stands out in logs."""
-    print(f"ERROR: {message}", file=sys.stderr)
+def _print_error(msg: str) -> None:
+    print(f"ERROR: {msg}", file=sys.stderr)
 
 
-def _join(cmd: Iterable[str]) -> str:
-    """Join a command list into a readable shell-like string (for logging only)."""
-    return " ".join(str(part) for part in cmd)
+def _join(cmd: List[str]) -> str:
+    return " ".join(cmd)
 
 
 def install_packages(packages: List[str], run: Callable) -> bool:
     """
-    Install one or more packages using pacman in an idempotent way.
+    Install the given packages with pacman if not already present.
 
-    Arguments:
-        packages:
-            A list of package names (strings), e.g., ["vim", "git", "curl"].
-        run:
-            The sudo runner callable returned by `start_sudo_session()`.
-            It must accept a list[str] command and execute it with sudo.
-
-    Returns:
-        True if the installation command completed successfully, False otherwise.
-
-    Behavior:
-        - Treats empty input as a successful no-op.
-        - Uses 'pacman -S --needed --noconfirm' to avoid reinstalling present packages.
-        - Prints actions, captures and prints output on errors.
+    Uses --needed and --noconfirm. Runs pacman under the provided `run`
+    (which already wraps sudo).
     """
-    try:
-        # Sanitize input first: drop non-strings/empties; allow empty list as no-op.
-        cleaned = [p.strip() for p in packages if isinstance(p, str) and p.strip()]
-        if not cleaned:
-            _print_action("pacman -S --needed --noconfirm  # (no packages provided; nothing to do)")
-            return True
+    if not packages:
+        return True
 
-        cmd = ["pacman", "-S", "--needed", "--noconfirm", *cleaned]
-        _print_action(_join(cmd))
+    cleaned = [pkg.strip() for pkg in packages if pkg and pkg.strip()]
+    if not cleaned:
+        return True
 
-        # Use the sudo-session runner (executes `sudo -n <cmd>` under the hood).
-        result = run(cmd, check=False, capture_output=False)
+    cmd = ["pacman", "-S", "--needed", "--noconfirm", *cleaned]
+    _print_action(_join(cmd))
 
-        if result.returncode != 0:
-            _print_error("pacman failed with a non-zero exit status.")
-            if result.stdout:
-                print(result.stdout.rstrip())
-            if result.stderr:
-                _print_error(result.stderr.rstrip())
-            return False
+    # Capture output so we can show diagnostics if it fails.
+    result = run(cmd, check=False, capture_output=True)
 
-        # On success, print any stdout (pacman can be chatty).
+    if result.returncode != 0:
+        _print_error("pacman failed with a non-zero exit status.")
         if result.stdout:
             print(result.stdout.rstrip())
         if result.stderr:
-            # pacman may warn to stderr even on success.
-            print(result.stderr.rstrip(), file=sys.stderr)
-
-        return True
-
-    except Exception as exc:
-        _print_error(f"Unexpected error running pacman: {exc}")
+            _print_error(result.stderr.rstrip())
         return False
 
+    # On success, pacman usually prints progress bars directly; stdout/stderr
+    # may be empty. We don’t spam unless something is useful.
+    if result.stdout:
+        print(result.stdout.rstrip())
+    if result.stderr:
+        # pacman sometimes warns to stderr even on success
+        print(result.stderr.rstrip(), file=sys.stderr)
 
-# Backward-compat alias for code that imported the old name.
-installpackage = install_packages
-
-
-if __name__ == "__main__":
-    # Demonstration of usage with the sudo session.
-    from utils.sudo_session import start_sudo_session
-
-    run, close = start_sudo_session()
-    try:
-        print("👟 Demo: installing 'htop' (idempotent).")
-        success = install_packages(["htop"], run)
-        print(f"Result: {'success' if success else 'failure'}")
-    finally:
-        close()
+    return True

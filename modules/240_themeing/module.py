@@ -38,9 +38,9 @@ def _path_exists(run: Callable, path: str) -> bool:
 
 # ---------- config writers ----------
 
-def _apply_gtk_defaults(run: Callable) -> bool:
+def _apply_gtk_defaults(run: Callable, gtk_theme_name: str) -> bool:
     gtk = f"""[Settings]
-gtk-theme-name={GTK_THEME_NAME}
+gtk-theme-name={gtk_theme_name}
 gtk-icon-theme-name={ICON_THEME_NAME}
 gtk-application-prefer-dark-theme=1
 """
@@ -63,7 +63,11 @@ icon_theme={ICON_THEME_NAME}
            _write_file(run, "/etc/xdg/qt6ct/qt6ct.conf", qt_common)
 
 def _apply_kvantum_theme(run: Callable, theme_name: str) -> bool:
-    if not (_path_exists(run, "/usr/bin/kvantummanager") or _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")):
+    # Require engine AND theme presence to write config; otherwise skip silently.
+    engine_present = _path_exists(run, "/usr/bin/kvantummanager") or \
+                     _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")
+    theme_present = _path_exists(run, f"/usr/share/Kvantum/{theme_name}")
+    if not (engine_present and theme_present):
         return True
     kv_cfg = f"[General]\ntheme={theme_name}\n"
     return _write_file(run, "/etc/xdg/Kvantum/kvantum.kvconfig", kv_cfg)
@@ -106,6 +110,10 @@ def install(run: Callable) -> bool:
 
         # Write GTK defaults
         if not _apply_gtk_defaults(run):
+        # Choose GTK theme based on presence; fallback to repo theme if AUR Nordic missing
+            nordic_present = _path_exists(run, "/usr/share/themes/Nordic")
+            gtk_to_set = GTK_THEME_NAME if nordic_present else GTK_FALLBACK_THEME
+        if not _apply_gtk_defaults(run, gtk_theme_name=gtk_to_set):
             print("❌ Failed writing GTK defaults.")
             return False
 
