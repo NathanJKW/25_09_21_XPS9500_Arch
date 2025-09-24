@@ -108,11 +108,9 @@ def install(run: Callable) -> bool:
         kvantum_available = _path_exists(run, "/usr/share/Kvantum") or \
                             _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")
 
-        # Write GTK defaults
-        if not _apply_gtk_defaults(run):
         # Choose GTK theme based on presence; fallback to repo theme if AUR Nordic missing
-            nordic_present = _path_exists(run, "/usr/share/themes/Nordic")
-            gtk_to_set = GTK_THEME_NAME if nordic_present else GTK_FALLBACK_THEME
+        nordic_present = _path_exists(run, "/usr/share/themes/Nordic")
+        gtk_to_set = GTK_THEME_NAME if nordic_present else GTK_FALLBACK_THEME
         if not _apply_gtk_defaults(run, gtk_theme_name=gtk_to_set):
             print("❌ Failed writing GTK defaults.")
             return False

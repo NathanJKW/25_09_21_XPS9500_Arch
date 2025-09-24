@@ -9,12 +9,10 @@ Set up SDDM as the display/login manager.
 - Configures /etc/sddm.conf.d/10-theme.conf to point at that theme if deployed.
 
 Notes:
-- Avoids enabling the service if we detect we are already in a running graphical
-  session (to prevent lockouts while bootstrapping).
+- Enabling the service is safe while you're in a running session; it just takes effect on next boot.
 """
 
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Callable
 
@@ -33,11 +31,21 @@ def _print_action(msg: str) -> None:
     print(f"$ {msg}")
 
 def _run_ok(run: Callable, cmd: list[str], input_text: str | None = None) -> bool:
+    """
+    Run a command via the sudo runner. The sudo runner expects 'input_text'
+    and already sets text=True internally.
+    """
     try:
-        result = run(cmd, input=input_text, text=True, capture_output=True)
+        result = run(cmd, check=False, capture_output=True, input_text=input_text)
         if result.returncode != 0:
+            # Prefer stderr if available, otherwise a generic failure line.
             print(result.stderr or f"Command failed: {' '.join(cmd)}")
             return False
+        # Surface stdout/stderr for visibility on success too (they may contain useful info).
+        if result.stdout:
+            print(result.stdout.rstrip())
+        if result.stderr:
+            print(result.stderr.rstrip())
         return True
     except Exception as e:
         print(f"ERROR running {' '.join(cmd)}: {e}")
@@ -65,39 +73,21 @@ def _backup_then_replace_theme(run: Callable) -> bool:
         return False
 
 def _write_conf(run: Callable) -> bool:
+    _print_action(f"install -Dm0644 /dev/stdin {CONF_FILE}")
     return _run_ok(
         run,
         ["install", "-Dm0644", "/dev/stdin", str(CONF_FILE)],
         input_text=SDDM_CONF_CONTENT,
     )
 
-def _file_exists(path: Path) -> bool:
-    return path.exists()
-
-def _file_contains(run: Callable, path: Path, pattern: str) -> bool:
-    if not path.exists():
-        return False
-    try:
-        result = run(["grep", "-q", pattern, str(path)], check=False)
-        return result.returncode == 0
-    except Exception:
-        return False
-
 def install(run: Callable) -> bool:
     # 1) Install sddm
     if not install_packages(["sddm"], run):
         return False
 
-    # 2) Enable service (skip if in running graphical session)
-    try:
-        if "DISPLAY" in dict(run(["env"], capture_output=True, text=True).stdout.splitlines()):
-            print("ℹ️  Detected running graphical session; not enabling sddm now.")
-        else:
-            _print_action("systemctl enable sddm.service")
-            run(["systemctl", "enable", "sddm.service"], check=False)
-    except Exception:
-        _print_action("systemctl enable sddm.service")
-        run(["systemctl", "enable", "sddm.service"], check=False)
+    # 2) Enable service (safe to do while a session is running; it activates on next boot)
+    _print_action("systemctl enable sddm.service")
+    run(["systemctl", "enable", "sddm.service"], check=False)
 
     # 3) Deploy theme (optional)
     if not _backup_then_replace_theme(run):
