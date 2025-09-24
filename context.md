@@ -1,4 +1,9 @@
 <File Tree>
+00 Archive/scripts/audio.sh
+00 Archive/scripts/fonts.sh
+00 Archive/scripts/sddminstall.sh
+00 Archive/scripts/symlinker.sh
+00 Archive/scripts/system_context.sh
 main.py
 modules/000_core/module.py
 modules/010_security/module.py
@@ -12,6 +17,11 @@ modules/130_gpu/module.py
 modules/140_audio/module.py
 modules/150_network/module.py
 modules/160_devtools/module.py
+modules/200_display-server/module.py
+modules/210_login_manager/module.py
+modules/220_window_manager/module.py
+modules/230_panels-bars/module.py
+modules/240_themeing/module.py
 utils/module_loader.py
 utils/pacman.py
 utils/sudo_session.py
@@ -19,6 +29,418 @@ utils/symlinker.py
 utils/yay.py
 
 <Contents of included files>
+
+--- 00 Archive/scripts/audio.sh ---
+#!/usr/bin/env bash
+# setup-audio.sh - simple PipeWire audio setup for Arch Linux
+
+set -e
+
+echo "[*] Updating system..."
+sudo pacman -Syu --noconfirm
+
+echo "[*] Installing PipeWire stack..."
+sudo pacman -S --needed --noconfirm \
+  pipewire pipewire-alsa pipewire-pulse wireplumber pavucontrol
+
+if pacman -Qq pulseaudio &>/dev/null; then
+  echo "[*] Removing PulseAudio (conflicts with PipeWire)..."
+  sudo pacman -Rns --noconfirm pulseaudio
+fi
+
+echo "[*] Enabling PipeWire user services..."
+systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service
+
+echo "[*] Verifying setup..."
+systemctl --user status pipewire.service --no-pager -l | grep "Active:"
+systemctl --user status pipewire-pulse.service --no-pager -l | grep "Active:"
+systemctl --user status wireplumber.service --no-pager -l | grep "Active:"
+
+echo
+echo "[*] Listing audio devices (ALSA):"
+aplay -l || true
+
+echo
+echo "[*] PipeWire info:"
+pactl info || true
+
+echo
+echo "[*] Done! Use 'pavucontrol' to pick your output device (HDMI, speakers, etc)."
+
+
+--- 00 Archive/scripts/fonts.sh ---
+#!/usr/bin/env bash
+#
+# setup-jetbrains-nerd-font.sh
+#
+# Install JetBrainsMono Nerd Font system-wide and set it as the default monospace font.
+#
+
+set -euo pipefail
+
+FONT_PKG="ttf-jetbrains-mono-nerd"
+FONTCONF="/etc/fonts/local.conf"
+
+echo "[*] Installing JetBrainsMono Nerd Font..."
+sudo pacman -S --needed --noconfirm "$FONT_PKG"
+
+echo "[*] Refreshing font cache..."
+sudo fc-cache -f -v
+
+echo "[*] Detecting JetBrains Nerd Font family name..."
+FAMILY=$(fc-list | grep -m1 "JetBrainsMono Nerd Font" | sed -E 's/.*: "([^"]+)".*/\1/')
+
+if [[ -z "$FAMILY" ]]; then
+  echo "[!] Could not detect JetBrainsMono Nerd Font in fc-list!"
+  exit 1
+fi
+
+echo "[*] Detected family: $FAMILY"
+
+echo "[*] Writing fontconfig rule to $FONTCONF..."
+sudo tee "$FONTCONF" >/dev/null <<EOF
+<?xml version='1.0'?>
+<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
+<fontconfig>
+  <!-- Default monospace font -->
+  <match target="pattern">
+    <test qual="any" name="family">
+      <string>monospace</string>
+    </test>
+    <edit name="family" mode="assign" binding="strong">
+      <string>$FAMILY</string>
+    </edit>
+  </match>
+</fontconfig>
+EOF
+
+echo "[*] Rebuilding font cache..."
+sudo fc-cache -f -v
+
+echo "[*] Verifying default monospace font..."
+fc-match monospace
+
+echo "[✓] JetBrainsMono Nerd Font is now the default monospace font system-wide."
+
+
+--- 00 Archive/scripts/sddminstall.sh ---
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# install_sddm.sh  v1.0
+#
+# Minimal installer for SDDM on Arch Linux.
+#
+# - Installs the `sddm` package
+# - Disables LightDM if present
+# - Enables SDDM service
+#
+# Intended for use on a brand new minimal install where checks are unnecessary.
+# -----------------------------------------------------------------------------
+
+set -euo pipefail
+
+# Install SDDM
+sudo pacman -S --noconfirm --needed sddm
+
+# Enable SDDM
+sudo systemctl enable sddm.service --now
+
+echo "✓ SDDM installed and enabled."
+
+
+--- 00 Archive/scripts/symlinker.sh ---
+#!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# bootstrap_symlinks.sh  v1.5
+#
+# Create symlinks from your dotfiles repo into the correct locations.
+# - Creates parent directories as needed
+# - Backs up existing targets (user files to ~/.dotfiles_backup/<ts>/…,
+#   system files to "<dest>.bak.<ts>" alongside the file)
+# - Automatically uses sudo for non-writable/system paths (e.g. /etc/*)
+#
+# Repo root (edit if you move the repo):
+#   REPO="/home/nathan/repos/25_09_21_XPS9500_Arch"
+#
+# What it links (adjust to taste):
+#   $REPO/i3/config                      ->  ~/.config/i3/config
+#   $REPO/git/gitconfig                  ->  ~/.gitconfig
+#   $REPO/X11/xorg.conf.d/90-libinput.conf  ->  ~/.config/xorg.conf.d/90-libinput.conf
+#   (optional system path)
+#   $REPO/X11/xorg.conf.d/90-libinput.conf  ->  /etc/X11/xorg.conf.d/90-libinput.conf
+# -----------------------------------------------------------------------------
+
+set -euo pipefail
+
+REPO="/home/nathan/repos/25_09_21_XPS9500_Arch"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+backup_root="${HOME}/.dotfiles_backup/${timestamp}"
+
+# ----- helpers ---------------------------------------------------------------
+
+need_sudo() {
+  # return 0 if we need sudo to write the DEST's parent dir
+  local dest="$1"
+  local parent; parent="$(dirname "$dest")"
+  [ -w "$parent" ] || { [ -e "$parent" ] && [ ! -w "$parent" ]; } && return 0
+  # parent not existing? test writability of its nearest existing ancestor
+  while [ ! -d "$parent" ]; do parent="$(dirname "$parent")"; done
+  [ -w "$parent" ] || return 0
+  return 1
+}
+
+ensure_parent() {
+  local dest="$1"
+  local parent; parent="$(dirname "$dest")"
+  if need_sudo "$dest"; then
+    sudo mkdir -p "$parent"
+  else
+    mkdir -p "$parent"
+  fi
+}
+
+backup_target() {
+  # create a backup of existing dest (file/dir/link)
+  local dest="$1"
+  if need_sudo "$dest"; then
+    local bk="${dest}.bak.${timestamp}"
+    echo "↪ backing up (root): $dest -> $bk"
+    sudo cp -a --no-preserve=ownership "$dest" "$bk" 2>/dev/null || sudo mv -f "$dest" "$bk"
+  else
+    local rel="${dest#${HOME}/}"
+    local bk="${backup_root}/${rel}"
+    echo "↪ backing up: $dest -> $bk"
+    mkdir -p "$(dirname "$bk")"
+    mv -f "$dest" "$bk"
+  fi
+}
+
+same_symlink_target() {
+  # returns 0 if dest is a symlink pointing to src
+  local src="$1" dest="$2"
+  [ -L "$dest" ] && [ "$(readlink -f "$dest")" = "$(readlink -f "$src")" ]
+}
+
+link_one() {
+  local src="$1" dest="$2"
+
+  # sanity
+  if [ ! -e "$src" ] && [ ! -L "$src" ]; then
+    echo "⚠  missing source: $src"
+    return 0
+  fi
+
+  ensure_parent "$dest"
+
+  # if exists and not already the same link, back it up
+  if [ -e "$dest" ] || [ -L "$dest" ]; then
+    if same_symlink_target "$src" "$dest"; then
+      echo "✓ already linked: $dest → $(readlink -f "$dest")"
+      return 0
+    fi
+    backup_target "$dest"
+  fi
+
+  if need_sudo "$dest"; then
+    echo "→ linking (root): $dest -> $src"
+    sudo ln -sfn "$src" "$dest"
+  else
+    echo "→ linking: $dest -> $src"
+    ln -sfn "$src" "$dest"
+  fi
+}
+
+# ----- user-scope links (no sudo) -------------------------------------------
+
+link_one "$REPO/i3/config"                          "${HOME}/.config/i3/config"
+link_one "$REPO/git/gitconfig"                      "${HOME}/.gitconfig"
+link_one "$REPO/X11/xorg.conf.d/90-libinput.conf"   "/etc/X11/xorg.conf.d/90-libinput.conf"
+link_one "$REPO/etc/sddm.conf.d/00-autologin.conf"  "/etc/sddm.conf.d/00-autologin.conf"
+link_one "$REPO/etc/sddm.conf.d/10-theme.conf"     "/etc/sddm.conf.d/10-theme.conf"
+
+# Uncomment if/when you want these managed too:
+# link_one "$REPO/X11/xprofile"                      "${HOME}/.xprofile"
+# link_one "$REPO/shell/bashrc"                       "${HOME}/.bashrc"
+# link_one "$REPO/shell/zshrc"                        "${HOME}/.zshrc"
+
+# ----- wrap up ---------------------------------------------------------------
+
+# Show where user backups (if any) landed
+[ -d "$backup_root" ] && echo "User backups (if any) are in: $backup_root"
+echo "Done."
+
+
+--- 00 Archive/scripts/system_context.sh ---
+#!/usr/bin/env bash
+# sys_prompt.sh — generate a concise, ChatGPT-friendly summary of this Linux system
+
+set -euo pipefail
+
+# Helpers
+has() { command -v "$1" >/dev/null 2>&1; }
+line() { printf '%*s\n' "${1:-60}" '' | tr ' ' '-'; }
+kv() { printf "%s: %s\n" "$1" "${2:-N/A}"; }
+run() { # run if available; trim trailing spaces/newlines
+  if has "$1"; then shift; "$@" 2>/dev/null | sed -e 's/[[:space:]]*$//' || true
+  fi
+}
+
+header() { echo; line 80; echo "# $*"; line 80; }
+
+# Basic
+HOSTNAME="$(hostname 2>/dev/null || echo N/A)"
+KERNEL="$(uname -r 2>/dev/null || echo N/A)"
+UNAME="$(uname -a 2>/dev/null || echo N/A)"
+UPTIME="$(awk -v s="$(cut -d. -f1 /proc/uptime 2>/dev/null)" 'BEGIN{
+d=int(s/86400); h=int((s%86400)/3600); m=int((s%3600)/60);
+printf("%dd %dh %dm", d,h,m)}' 2>/dev/null || echo N/A)"
+
+# OS info
+if [ -r /etc/os-release ]; then
+  . /etc/os-release
+  OS_NAME="${PRETTY_NAME:-$NAME $VERSION_ID}"
+else
+  OS_NAME="$(run lsb_release lsb_release -d | cut -f2)"
+fi
+
+# CPU
+CPU_MODEL="$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ //')"
+CPU_CORES="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo N/A)"
+CPU_ARCH="$(uname -m 2>/dev/null || echo N/A)"
+CPU_FLAGS="$(grep -m1 ^flags /proc/cpuinfo 2>/dev/null | cut -d: -f2- | tr ' ' ' ' | sed -e 's/^ //' )"
+
+# Memory
+MEM_TOTAL="$(grep -m1 MemTotal /proc/meminfo 2>/dev/null | awk '{printf "%.1f GiB",$2/1024/1024}')"
+MEM_FREE="$(free -h 2>/dev/null | awk '/Mem:/ {print $7" (available)"}')"
+
+# Disks & FS
+DISK_LAYOUT="$(lsblk -o NAME,FSTYPE,LABEL,SIZE,MOUNTPOINT -r 2>/dev/null | sed -e 's/^/  /')"
+DISK_USAGE="$(df -hT -x tmpfs -x devtmpfs 2>/dev/null | sed -e 's/^/  /')"
+
+# GPU / Graphics
+GPU_LSPCI="$(lspci 2>/dev/null | grep -E 'VGA|3D|Display' || true)"
+GPU_RENDERER="$(run glxinfo glxinfo | awk -F': ' '/OpenGL renderer string/ {print $2; exit}')"
+DISPLAY_SERVER="$(printf '%s' "${XDG_SESSION_TYPE:-$(loginctl show-session $XDG_SESSION_ID 2>/dev/null | awk -F= '/Type=/{print $2}')}")"
+
+# Network
+IP_BRIEF="$(run ip ip -br a | sed -e 's/^/  /')"
+DNS_RESOLV="$(awk '/^nameserver/ {print $2}' /etc/resolv.conf 2>/dev/null | paste -sd, -)"
+DEFAULT_ROUTE="$(run ip ip route | awk '/default/ {print $3; exit}')"
+
+# Userspace / DE-WM / Shell
+SHELL_NAME="${SHELL:-$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)}"
+DESKTOP="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-$(echo "${GDMSESSION:-}" )}}"
+WINDOW_MANAGER="$(run wmctrl wmctrl -m | awk -F': ' '/Name:/ {print $2}')"
+if [ -z "${WINDOW_MANAGER:-}" ]; then
+  WINDOW_MANAGER="$(xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | awk '{print $5}' | xargs -r -I{} xprop -id {} _NET_WM_NAME 2>/dev/null | awk -F\" '{print $2}' )"
+fi
+
+# Kernel modules of interest (graphics/network)
+KMODS="$(run lsmod lsmod | awk 'NR==1 || /(^i915|^amdgpu|^nouveau|^nvidia|^iwlwifi|^ath9k|^rtw|^r8169|^e1000|^tg3|^ax2|^mt76)/' 2>/dev/null | sed -e 's/^/  /')"
+
+# Package management (Arch-aware with fallbacks)
+PKG_MGR=""
+PKG_COUNT=""
+PKG_EXPLICIT=""
+PKG_AUR=""
+if has pacman; then
+  PKG_MGR="pacman"
+  PKG_COUNT="$(pacman -Q 2>/dev/null | wc -l | tr -d ' ')"
+  PKG_EXPLICIT="$(pacman -Qe 2>/dev/null | head -n 60 | awk '{print $1}' | paste -sd' ' -)"
+  [ "$(pacman -Qe 2>/dev/null | wc -l)" -gt 60 ] && PKG_EXPLICIT="$PKG_EXPLICIT …"
+  PKG_AUR="$(pacman -Qm 2>/dev/null | head -n 40 | awk '{print $1}' | paste -sd' ' -)"
+  [ "$(pacman -Qm 2>/dev/null | wc -l)" -gt 40 ] && PKG_AUR="$PKG_AUR …"
+elif has dpkg; then
+  PKG_MGR="dpkg/apt"
+  PKG_COUNT="$(dpkg -l 2>/dev/null | awk '/^ii/ {c++} END{print c+0}')"
+elif has rpm; then
+  PKG_MGR="rpm"
+  PKG_COUNT="$(rpm -qa 2>/dev/null | wc -l | tr -d ' ')"
+fi
+
+# Kernel params (useful for GPU, virtualization, etc.)
+KCMDLINE="$(cat /proc/cmdline 2>/dev/null | sed -e 's/initramfs\.img[^ ]*//g')"
+
+# Virtualization / Firmware
+VIRT="$(systemd-detect-virt 2>/dev/null || true)"
+FW="$(run fwupdmgr fwupdmgr get-devices | awk -F': ' '/^├─|^└─/ {print $2}' | paste -sd', ' -)"
+
+# Audio
+AUDIO="$(run pactl pactl info | awk -F': ' '/Server Name|Default Sink|Default Source/ {print $1": "$2}')"
+if [ -z "$AUDIO" ]; then
+  AUDIO="$(run aplay aplay -l | sed -e 's/^/  /')"
+fi
+
+# Compose Output
+header "SYSTEM CONTEXT (for ChatGPT)"
+kv "Hostname" "$HOSTNAME"
+kv "OS" "$OS_NAME"
+kv "Kernel" "$KERNEL"
+kv "Uptime" "$UPTIME"
+kv "Architecture" "$CPU_ARCH"
+kv "Virtualization" "${VIRT:-N/A}"
+
+header "CPU"
+kv "Model" "${CPU_MODEL:-N/A}"
+kv "Cores (online)" "${CPU_CORES:-N/A}"
+if [ -n "${CPU_FLAGS:-}" ]; then
+  kv "Key flags" "$(echo "$CPU_FLAGS" | grep -oE '(avx512|avx2|avx|sse4_2|sse4_1|aes|vmx|svm)' | sort -u | paste -sd',' -)"
+fi
+
+header "MEMORY"
+kv "Total" "${MEM_TOTAL:-N/A}"
+kv "Available" "${MEM_FREE:-N/A}"
+
+header "GRAPHICS"
+kv "GPU (lspci)" "${GPU_LSPCI:-N/A}"
+kv "Renderer (OpenGL)" "${GPU_RENDERER:-N/A}"
+kv "Display Server" "${DISPLAY_SERVER:-N/A}"
+echo "Kernel Modules:"
+echo "${KMODS:-  N/A}"
+
+header "DISKS"
+echo "Block Devices:"
+echo "${DISK_LAYOUT:-  N/A}"
+echo
+echo "Mounted Filesystems:"
+echo "${DISK_USAGE:-  N/A}"
+
+header "NETWORK"
+kv "Default Gateway" "${DEFAULT_ROUTE:-N/A}"
+kv "DNS" "${DNS_RESOLV:-N/A}"
+echo "Interfaces (brief):"
+echo "${IP_BRIEF:-  N/A}"
+
+header "USER ENVIRONMENT"
+kv "Shell" "${SHELL_NAME:-N/A}"
+kv "Desktop Environment" "${DESKTOP:-N/A}"
+kv "Window Manager" "${WINDOW_MANAGER:-N/A}"
+
+header "AUDIO"
+if [ -n "${AUDIO:-}" ]; then
+  echo "$AUDIO"
+else
+  echo "  N/A"
+fi
+
+header "PACKAGES"
+kv "Manager" "${PKG_MGR:-N/A}"
+kv "Installed Count" "${PKG_COUNT:-N/A}"
+if [ "$PKG_MGR" = "pacman" ]; then
+  kv "Explicit (sample)" "${PKG_EXPLICIT:-N/A}"
+  kv "AUR/Foreign (sample)" "${PKG_AUR:-N/A}"
+fi
+
+header "KERNEL CMDLINE (trimmed)"
+echo "  $KCMDLINE"
+
+echo
+line 80
+echo "# NOTES"
+echo "- Lists are truncated to keep this summary compact. If you need full lists, let me know."
+echo "- Safe, read-only commands were used; no system changes were made."
+line 80
+
 
 --- main.py ---
 # main.py
@@ -2014,6 +2436,892 @@ def install(run: Callable) -> bool:
 
     print("✔ [160_devtools] Complete. You may need to log out/in for new group membership to take effect.")
     return True
+
+
+--- modules/200_display-server/module.py ---
+#!/usr/bin/env python3
+"""
+200_display-server — Minimal Xorg base + NVIDIA KMS (hybrid Intel + NVIDIA)
+
+What this module does
+---------------------
+- Installs a minimal Xorg server stack (no legacy xf86-video-intel).
+- Enables DRM KMS for NVIDIA (modeset=1) via a modprobe drop-in.
+- Adds a safe Xorg OutputClass snippet for PRIME render offload that
+  keeps the Intel iGPU as primary and uses NVIDIA via `prime-run`.
+
+Idempotency & Safety
+--------------------
+- Package installs are via utils.pacman.install_packages (uses --needed).
+- Config files are written atomically and can be re-run safely.
+- Does NOT enable or configure a login manager; that's 210_login-manager.
+"""
+
+from __future__ import annotations
+from typing import Callable
+
+from utils.pacman import install_packages
+
+# ---- toggles ---------------------------------------------------------------
+
+# Write /etc/X11/xorg.conf.d/10-nvidia-offload.conf (recommended)
+WRITE_XORG_NVIDIA_SNIPPET = True
+
+# Only set DRM KMS via modprobe drop-in (recommended).
+# If you prefer also setting a kernel cmdline (GRUB), do that in 210_login-manager or manually.
+WRITE_NVIDIA_KMS_MODPROBE = True
+
+# ---- config content --------------------------------------------------------
+
+NVIDIA_KMS_MODPROBE_PATH = "/etc/modprobe.d/nvidia-drm-modeset.conf"
+NVIDIA_KMS_MODPROBE_CONTENT = """# Enable DRM KMS for NVIDIA (Wayland & better Xorg modesetting)
+options nvidia_drm modeset=1
+"""
+
+XORG_SNIPPET_PATH = "/etc/X11/xorg.conf.d/10-nvidia-offload.conf"
+XORG_SNIPPET_CONTENT = r"""# Keep Intel iGPU as primary; use NVIDIA for PRIME render offload via `prime-run`.
+Section "OutputClass"
+    Identifier "nvidia"
+    MatchDriver "nvidia-drm"
+    Driver "nvidia"
+    Option "AllowEmptyInitialConfiguration"
+    Option "PrimaryGPU" "no"
+    # Ensure NVIDIA Xorg modules are visible (Arch standard paths)
+    ModulePath "/usr/lib/nvidia/xorg"
+    ModulePath "/usr/lib/xorg/modules"
+EndSection
+"""
+
+# ---- helpers ---------------------------------------------------------------
+
+def _write_file(run: Callable, path: str, content: str, mode: str = "0644") -> bool:
+    """Atomically create/update a root-owned file via install -D."""
+    try:
+        print(f"$ install -D -m {mode} /dev/stdin {path}")
+        res = run(["install", "-D", "-m", mode, "/dev/stdin", path],
+                  check=False, capture_output=True, input_text=content)
+        if res.stdout: print(res.stdout.rstrip())
+        if res.stderr: print(res.stderr.rstrip())
+        return res.returncode == 0
+    except Exception as exc:
+        print(f"ERROR: writing {path}: {exc}")
+        return False
+
+
+def _ensure_dir(run: Callable, path: str) -> bool:
+    res = run(["mkdir", "-p", path], check=False, capture_output=True)
+    if res.returncode != 0:
+        if res.stdout: print(res.stdout.rstrip())
+        if res.stderr: print(res.stderr.rstrip())
+        return False
+    return True
+
+
+# ---- main ------------------------------------------------------------------
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [200_display-server] Installing minimal Xorg + NVIDIA KMS baseline…")
+
+        # 1) Minimal Xorg base (no xf86-video-intel; use modesetting)
+        pkgs = [
+            "xorg-server",
+            "xorg-xinit",
+            "xorg-xrandr",
+            "xorg-xauth",   # small but handy (X11 auth forwarding)
+            "xorg-xset",    # utility; harmless
+        ]
+        if not install_packages(pkgs, run):
+            return False
+
+        # 2) NVIDIA DRM KMS via modprobe (safe, reversible)
+        if WRITE_NVIDIA_KMS_MODPROBE:
+            if not _write_file(run, NVIDIA_KMS_MODPROBE_PATH, NVIDIA_KMS_MODPROBE_CONTENT):
+                return False
+
+        # 3) Xorg PRIME offload snippet (keeps Intel primary)
+        if WRITE_XORG_NVIDIA_SNIPPET:
+            if not _ensure_dir(run, "/etc/X11/xorg.conf.d"):
+                return False
+            if not _write_file(run, XORG_SNIPPET_PATH, XORG_SNIPPET_CONTENT):
+                return False
+
+        print("✔ [200_display-server] Display server baseline is in place.")
+
+        # 4) Tips / verification (non-fatal)
+        print("""
+Next steps / verification:
+  • Reboot (or reload modules) so NVIDIA DRM KMS takes effect.
+  • After logging into X11:
+      - Offload test:     prime-run glxinfo | grep "OpenGL renderer"
+      - Providers:        xrandr --listproviders
+  • Wayland later (optional): with modeset=1 set, most compositors will work better on NVIDIA.
+Notes:
+  - Display manager (LightDM/SDDM/GDM) is handled in 210_login-manager.
+  - Window manager/DE (i3/sway/...) is handled in 220_window-manager.
+""".rstrip())
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 200_display-server.install failed: {exc}")
+        return False
+
+
+--- modules/210_login_manager/module.py ---
+#!/usr/bin/env python3
+"""
+210_login_manager — SDDM (Qt6) with local dark theme (unattended + session-safe)
+
+What this module does
+---------------------
+- Installs SDDM and required Qt6 packages.
+- Copies local theme from ./theme/ -> /usr/share/sddm/themes/<THEME_NAME>.
+- Backs up & removes old theme-related SDDM configs, then writes /etc/sddm.conf.d/10-theme.conf.
+- Service changes are SAFE:
+    * If a display manager is currently active, SKIP touching services (to avoid logging you out).
+    * If no DM is active (e.g., running from a TTY), enable SDDM for next boot and disable/mask LightDM.
+
+Idempotency & Safety
+--------------------
+- pacman installs via utils.pacman.install_packages (uses --needed).
+- Config written atomically via install -D; existing theme dir backed up per run.
+- No live start/stop and no target switch during the run.
+"""
+
+from __future__ import annotations
+
+import shlex
+import subprocess
+from pathlib import Path
+from typing import Callable, Optional
+
+from utils.pacman import install_packages
+
+# ----------------------------- constants -----------------------------
+
+THEME_NAME = "simple-sddm-2"  # destination folder name under /usr/share/sddm/themes/
+MODULE_DIR = Path(__file__).resolve().parent
+THEME_SRC = MODULE_DIR / "theme"                       # theme files live directly here
+THEME_DST = Path("/usr/share/sddm/themes") / THEME_NAME
+
+CONF_DIR = Path("/etc/sddm.conf.d")
+CONF_FILE = CONF_DIR / "10-theme.conf"
+LEGACY_CONF = Path("/etc/sddm.conf")
+
+SDDM_CONF_CONTENT = f"""# Installed by 210_login_manager
+[Theme]
+Current={THEME_NAME}
+
+[General]
+# Enable Qt virtual keyboard (commonly expected by Qt6 themes)
+InputMethod=qtvirtualkeyboard
+"""
+
+# ----------------------------- helpers -----------------------------
+
+def _print_action(text: str) -> None:
+    print(f"$ {text}")
+
+def _run_ok(run: Callable, cmd: list[str], *, input_text: Optional[str] = None) -> bool:
+    _print_action(" ".join(shlex.quote(c) for c in cmd))
+    res = run(cmd, check=False, capture_output=True, input_text=input_text)
+    if res.stdout:
+        print(res.stdout.rstrip())
+    if res.stderr:
+        print(res.stderr.rstrip())
+    return res.returncode == 0
+
+def _run_user(cmd: list[str]) -> None:
+    """Run a harmless command as the invoking user (no sudo)."""
+    print("$ " + " ".join(cmd))
+    res = subprocess.run(cmd, check=False, text=True, capture_output=True)
+    if res.stdout:
+        print(res.stdout.rstrip())
+    if res.stderr:
+        print(res.stderr.rstrip())
+
+def _file_contains(run: Callable, path: Path, pattern: str) -> bool:
+    """True if file exists and matches pattern (extended regex)."""
+    res = run(
+        ["bash", "-lc", f'[[ -f {shlex.quote(str(path))} ]] && grep -Eq {shlex.quote(pattern)} {shlex.quote(str(path))}'],
+        check=False
+    )
+    return res.returncode == 0
+
+def _clean_old_theme_confs(run: Callable) -> bool:
+    """
+    Back up & remove old/conflicting SDDM theme settings:
+      - /etc/sddm.conf.d/*.conf that contain [Theme] or Current=
+      - legacy /etc/sddm.conf if it contains [Theme]/Current=
+    """
+    dropins = rf"""
+set -e
+dir={shlex.quote(str(CONF_DIR))}
+ts=$(date +%Y%m%d-%H%M%S)
+backup="$dir/.backup-$ts"
+mkdir -p "$backup"
+shopt -s nullglob
+for f in "$dir"/*.conf; do
+  if grep -Eq '^\[Theme\]|^Current=' "$f"; then
+    mv "$f" "$backup"/
+  fi
+done
+"""
+    if not _run_ok(run, ["bash", "-lc", dropins]):
+        return False
+
+    if _file_contains(run, LEGACY_CONF, r'^\[Theme\]|^Current='):
+        legacy = rf"""
+set -e
+f={shlex.quote(str(LEGACY_CONF))}
+ts=$(date +%Y%m%d-%H%M%S)
+backup=$(dirname "$f")/.backup-$ts
+mkdir -p "$backup"
+mv "$f" "$backup"/
+"""
+        if not _run_ok(run, ["bash", "-lc", legacy]):
+            return False
+    return True
+
+def _write_conf(run: Callable) -> bool:
+    return _run_ok(
+        run,
+        ["install", "-Dm0644", "/dev/stdin", str(CONF_FILE)],
+        input_text=SDDM_CONF_CONTENT,
+    )
+
+def _backup_then_replace_theme(run: Callable) -> bool:
+    """
+    Copy ./theme -> /usr/share/sddm/themes/<THEME_NAME>
+    If destination exists, back it up under /usr/share/sddm/themes/.backup-<timestamp>/
+    """
+    if not THEME_SRC.exists() or not THEME_SRC.is_dir():
+        print(f"ERROR: Missing theme source directory: {THEME_SRC}")
+        print("       Put your theme files directly under modules/210_login_manager/theme/")
+        return False
+
+    script = rf"""
+set -e
+src={shlex.quote(str(THEME_SRC))}
+dst={shlex.quote(str(THEME_DST))}
+parent=$(dirname "$dst")
+mkdir -p "$parent"
+if [ -e "$dst" ] || [ -L "$dst" ]; then
+  ts=$(date +%Y%m%d-%H%M%S)
+  mkdir -p "$parent/.backup-$ts"
+  mv "$dst" "$parent/.backup-$ts"/ 2>/dev/null || true
+fi
+cp -a "$src" "$dst"
+"""
+    return _run_ok(run, ["bash", "-lc", script])
+
+def _display_manager_active(run: Callable) -> bool:
+    """
+    Detect if any display manager is currently active.
+    We check the generic display-manager.service and common DMs.
+    """
+    checks = [
+        ["systemctl", "is-active", "--quiet", "display-manager.service"],
+        ["systemctl", "is-active", "--quiet", "sddm.service"],
+        ["systemctl", "is-active", "--quiet", "lightdm.service"],
+        ["systemctl", "is-active", "--quiet", "gdm.service"],
+        ["systemctl", "is-active", "--quiet", "ly.service"],
+    ]
+    for cmd in checks:
+        res = run(cmd, check=False)
+        if res.returncode == 0:
+            return True
+    return False
+
+def _configure_services_safely(run: Callable) -> bool:
+    """
+    Safe service configuration:
+      - If a display manager is currently active, SKIP touching services to avoid logout.
+      - Otherwise (TTY/new install), disable LightDM, enable SDDM for next boot.
+    """
+    if _display_manager_active(run):
+        print("ℹ️  A display manager is currently active; skipping service changes to avoid logging you out.")
+        print("    SDDM + theme are installed. After provisioning, you can switch with:")
+        print("      sudo systemctl disable lightdm.service && sudo systemctl mask lightdm.service")
+        print("      sudo systemctl unmask sddm.service && sudo systemctl enable sddm.service")
+        print("      sudo reboot")
+        return True
+
+    ok = True
+    _run_ok(run, ["systemctl", "disable", "lightdm.service"])
+    _run_ok(run, ["systemctl", "mask", "lightdm.service"])
+    _run_ok(run, ["systemctl", "unmask", "sddm.service"])
+    if not _run_ok(run, ["systemctl", "enable", "sddm.service"]):
+        ok = False
+    return ok
+
+# ----------------------------- main entry -----------------------------
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [210_login_manager] Installing SDDM + dark theme (session-safe)…")
+
+        # 1) Packages
+        pkgs = [
+            "sddm",
+            "qt6-svg",
+            "qt6-virtualkeyboard",
+            "qt6-multimedia-ffmpeg",
+            "qt6-declarative",
+        ]
+        if not install_packages(pkgs, run):
+            print("ERROR: Failed to install required packages.")
+            return False
+
+        # 2) Ensure drop-in dir, clean old theme configs
+        if not _run_ok(run, ["mkdir", "-p", str(CONF_DIR)]):
+            return False
+        if not _clean_old_theme_confs(run):
+            print("ERROR: Failed to clean old SDDM theme configs.")
+            return False
+
+        # 3) Deploy theme
+        if not _backup_then_replace_theme(run):
+            print("ERROR: Failed to deploy theme to /usr/share/sddm/themes/")
+            return False
+
+        # 4) Write authoritative theme drop-in
+        if not _write_conf(run):
+            print("ERROR: Failed to write SDDM theme drop-in.")
+            return False
+
+        # 5) Configure services safely (no live switch; skip if a DM is active)
+        if not _configure_services_safely(run):
+            print("ERROR: Failed to configure display manager services.")
+            return False
+
+        # 6) Best-effort visibility (non-fatal; run as user to avoid sudo hang)
+        _run_user(["bash", "-lc", "pacman -Q sddm || true"])
+        _run_user(["bash", "-lc", "command -v sddm >/dev/null 2>&1 && sddm --version || true"])
+
+        print("✔ [210_login_manager] Ready. Reboot (or switch later) to use SDDM with your dark theme.")
+        print(f"   Theme: {THEME_DST}")
+        print(f"   Config: {CONF_FILE}")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 210_login_manager.install failed: {exc}")
+        return False
+
+
+--- modules/220_window_manager/module.py ---
+#!/usr/bin/env python3
+"""
+220_window_manager — i3 on X11 (with rofi, picom, dunst, polkit agent)
+
+What this module does
+---------------------
+- Installs a standard i3 X11 stack:
+  * Core: i3-wm, i3status
+  * Launcher: rofi
+  * Lock/idle helpers: i3lock, xss-lock, xorg-xset
+  * UX: picom (compositor), dunst (notifications), feh (wallpaper), arandr (displays), xclip (clipboard)
+  * QoL: playerctl, brightnessctl, flameshot, lxappearance
+  * Polkit agent: polkit-gnome
+- Prints post-install tips and quick tests.
+- Does NOT write per-user config and does NOT touch display manager services.
+
+Idempotency & Safety
+--------------------
+- Pacman installs via utils.pacman.install_packages (uses --needed).
+- No service changes here (210_login_manager handles DM).
+- No writes to $HOME or /etc configs for i3/rofi/picom/dunst (leave to 4xx dotfiles).
+
+i3 config snippet (put this in your dotfiles, e.g. ~/.config/i3/config)
+-----------------------------------------------------------------------
+# Launcher
+bindsym $mod+d exec rofi -show drun
+
+# Idle + lock (example timings)
+exec --no-startup-id xset s 300 60
+exec --no-startup-id xset +dpms
+exec --no-startup-id xss-lock -n /usr/share/doc/xss-lock/dim-screen.sh -- i3lock -n
+
+# Compositor, notifications, polkit agent
+exec --no-startup-id picom --experimental-backends
+exec --no-startup-id dunst
+exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+
+# QoL helpers (optional binds)
+# bindsym XF86AudioPlay exec playerctl play-pause
+# bindsym XF86MonBrightnessUp exec brightnessctl set +5%
+# bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+# bindsym $mod+Print exec flameshot gui
+"""
+
+from __future__ import annotations
+from typing import Callable, Iterable
+import subprocess
+
+from utils.pacman import install_packages
+
+
+# ------------------------------- helpers -------------------------------------
+
+def _print(msg: str) -> None:
+    print(msg)
+
+
+def _run_user(cmd: Iterable[str]) -> None:
+    """Run a harmless command as the invoking user (no sudo)."""
+    _print("$ " + " ".join(cmd))
+    try:
+        res = subprocess.run(list(cmd), check=False, text=True, capture_output=True)
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+    except Exception as exc:
+        print(f"⚠️  Skipping user command {' '.join(cmd)}: {exc}")
+
+
+def _check_presence() -> None:
+    """Best-effort visibility: show versions and presence of key tools."""
+    _run_user(["bash", "-lc", "i3 --version || true"])
+    _run_user(["bash", "-lc", "rofi -v || true"])
+    _run_user(["bash", "-lc", "command -v i3lock >/dev/null 2>&1 && echo 'i3lock present' || echo 'i3lock missing'"])
+    _run_user(["bash", "-lc", "command -v xss-lock >/dev/null 2>&1 && echo 'xss-lock present' || echo 'xss-lock missing'"])
+    _run_user(["bash", "-lc", "command -v picom >/dev/null 2>&1 && echo 'picom present' || echo 'picom missing'"])
+    _run_user(["bash", "-lc", "command -v dunst >/dev/null 2>&1 && echo 'dunst present' || echo 'dunst missing'"])
+    _run_user(["bash", "-lc", "command -v xset  >/dev/null 2>&1 && echo 'xset present'  || echo 'xset missing'"])
+    _run_user(["bash", "-lc", "command -v playerctl >/dev/null 2>&1 && echo 'playerctl present' || echo 'playerctl missing'"])
+    _run_user(["bash", "-lc", "command -v brightnessctl >/dev/null 2>&1 && echo 'brightnessctl present' || echo 'brightnessctl missing'"])
+    _run_user(["bash", "-lc", "command -v flameshot >/dev/null 2>&1 && echo 'flameshot present' || echo 'flameshot missing'"])
+    _run_user(["bash", "-lc", "command -v lxappearance >/dev/null 2>&1 && echo 'lxappearance present' || echo 'lxappearance missing'"])
+    _run_user(["bash", "-lc", "command -v /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 >/dev/null 2>&1 && echo 'polkit-gnome agent present' || echo 'polkit-gnome agent missing'"])
+
+
+# ------------------------------- main ----------------------------------------
+
+def install(run: Callable) -> bool:
+    try:
+        _print("▶ [220_window_manager] Installing i3 (X11) stack + helpers…")
+
+        pkgs = [
+            # Core WM stack
+            "i3-wm",
+            "i3status",
+
+            # Launcher
+            "rofi",
+
+            # Lock / idle helpers
+            "i3lock",
+            "xss-lock",
+            "xorg-xset",
+
+            # UX & compositor & utilities
+            "picom",
+            "dunst",
+            "feh",
+            "arandr",
+            "xclip",
+
+            # QoL
+            "playerctl",
+            "brightnessctl",
+            "flameshot",
+            "lxappearance",
+
+            # Polkit agent for GUI auth prompts
+            "polkit-gnome",
+        ]
+
+        if not install_packages(pkgs, run):
+            _print("❌ [220_window_manager] Package installation failed.")
+            return False
+
+        # Session integration: i3 desktop file is provided by i3-wm under /usr/share/xsessions/i3.desktop.
+        _print("ℹ️  i3 session installed. Your display manager (e.g., SDDM) should list 'i3' as a session option.")
+
+        # Best-effort diagnostics (non-fatal)
+        _check_presence()
+
+        # Tips
+        _print("""
+Tips:
+  • Add the autostart lines to your i3 config (~/.config/i3/config), see the snippet in this file header.
+  • Test locker after starting xss-lock via your i3 autostart:
+      $ xset s activate
+  • i3 reload/restart:
+      $ i3-msg reload
+      $ i3-msg restart
+  • In your display manager, select the 'i3' session at login.
+""".rstrip())
+
+        _print("✔ [220_window_manager] i3 window manager stack is ready (no user config written).")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 220_window_manager.install failed: {exc}")
+        return False
+
+
+--- modules/230_panels-bars/module.py ---
+#!/usr/bin/env python3
+"""
+230_panels-bars — Polybar for i3 (X11)
+
+What this module does
+---------------------
+- Installs Polybar and sensors tooling (for temperature modules).
+- Prints non-fatal diagnostics and tips to wire Polybar into i3.
+- Does NOT write user config (leave to your 4xx dotfiles).
+
+Why this module is minimal
+--------------------------
+Polybar ships a default system config at /etc/polybar/config.ini that works out of the box.
+Your personal config should live at ~/.config/polybar/config.ini and will override the system one.
+
+Copy/paste: ~/.config/polybar/config.ini (basic bar with i3, battery, temps, clock)
+-----------------------------------------------------------------------------------
+; Minimal example. Adjust names after checking:
+;   $ ls -1 /sys/class/power_supply/         # e.g. BAT0, ADP1 (or AC)
+;   $ sensors                                # see which thermal zones are valid
+
+[colors]
+background = #AA1E1E2E
+foreground = #D9D9D9
+primary    = #89B4FA
+warning    = #F9E2AF
+critical   = #F38BA8
+
+[bar/main]
+width = 100%
+height = 28
+background = ${colors.background}
+foreground = ${colors.foreground}
+font-0 = JetBrainsMono Nerd Font:style=Regular:size=10;2
+padding-left = 1
+padding-right = 1
+module-margin = 2
+enable-ipc = true
+cursor-click = pointer
+cursor-scroll = ns-resize
+; uncomment for tray support if desired:
+; tray-position = right
+; tray-maxsize = 20
+
+modules-left  = i3
+modules-center =
+modules-right = temperature battery date
+
+[module/i3]
+type = internal/i3
+format = <label-state> <label-mode>
+label-focused = %name%
+label-focused-foreground = ${colors.primary}
+label-unfocused = %name%
+label-visible = %name%
+label-urgent = %name%
+; show only non-empty workspaces:
+index-sort = true
+wrapping-scroll = false
+pin-workspaces = true
+
+[module/battery]
+type = internal/battery
+battery = BAT0
+adapter = ADP1
+full-at = 98
+format-charging =   <animation-charging> <label-charging>
+format-discharging =   <ramp-capacity> <label-discharging>
+format-full =   <label-full>
+ramp-capacity-0 = 
+ramp-capacity-1 = 
+ramp-capacity-2 = 
+ramp-capacity-3 = 
+ramp-capacity-4 = 
+animation-charging-0 = 
+animation-charging-1 = 
+animation-charging-2 = 
+animation-charging-3 = 
+animation-charging-4 = 
+animation-charging-framerate = 750
+
+[module/temperature]
+type = internal/temperature
+; EITHER set thermal-zone OR a specific hwmon path. Start with thermal-zone:
+thermal-zone = 0
+warn-temperature = 80
+format =   <label>
+format-warn =   <label-warn>
+label = %temperature-c%°C
+label-warn = %temperature-c%°C
+label-warn-foreground = ${colors.warning}
+
+[module/date]
+type = internal/date
+interval = 1
+time = %Y-%m-%d %H:%M:%S
+format =   <label>
+label = %time%
+
+Copy/paste: ~/.config/polybar/launch.sh (spawn per monitor)
+-----------------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
+
+killall -q polybar || true
+while pgrep -u "$UID" -x polybar >/dev/null; do sleep 0.2; done
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/polybar/config.ini"
+
+if command -v polybar >/dev/null 2>&1; then
+  if [ -f "$CONFIG" ]; then
+    for m in $(polybar -m | cut -d: -f1); do
+      MONITOR="$m" polybar -q main -c "$CONFIG" &
+    done
+  else
+    # fallback: run with the system config so you at least get a bar
+    for m in $(polybar -m | cut -d: -f1); do
+      MONITOR="$m" polybar -q main -c /etc/polybar/config.ini &
+    done
+  fi
+fi
+
+Make executable:
+  chmod +x ~/.config/polybar/launch.sh
+
+i3 autostart (add to your i3 config)
+------------------------------------
+exec_always --no-startup-id ~/.config/polybar/launch.sh
+
+Notes
+-----
+- If you used i3bar before, comment out any `bar { ... }` block in your i3 config.
+- Temperature source can differ per hardware; use `sensors` and adjust `thermal-zone`
+  or set an explicit `hwmon-path = /sys/class/hwmon/hwmonX/temp1_input`.
+"""
+
+from __future__ import annotations
+from typing import Callable, Iterable
+import subprocess
+
+from utils.pacman import install_packages
+
+
+def _print(msg: str) -> None:
+    print(msg)
+
+
+def _run_user(cmd: Iterable[str]) -> None:
+    """Run a harmless command as the invoking user (no sudo)."""
+    _print("$ " + " ".join(cmd))
+    try:
+        res = subprocess.run(list(cmd), check=False, text=True, capture_output=True)
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+    except Exception as exc:
+        print(f"⚠️  Skipping user command {' '.join(cmd)}: {exc}")
+
+
+def _diagnostics() -> None:
+    """Best-effort visibility & guidance."""
+    _run_user(["bash", "-lc", "polybar -vvv | sed -n '1,40p' || true"])
+    _run_user(["bash", "-lc", "echo 'Detected monitors:' && polybar -m || true"])
+    _run_user(["bash", "-lc", "test -f /etc/polybar/config.ini && echo '/etc/polybar/config.ini exists' || echo 'system config missing'"])
+    _run_user(["bash", "-lc", "command -v sensors >/dev/null 2>&1 && sensors || echo 'Run `sudo sensors-detect` to improve temperature readings'"])
+
+
+def install(run: Callable) -> bool:
+    try:
+        _print("▶ [230_panels-bars] Installing Polybar + sensors tooling…")
+
+        # Core bar + sensors for temperature module
+        pkgs = [
+            "polybar",
+            "lm_sensors",   # for `sensors` and improved temp visibility
+            # Optional helper for quick battery/AC debugging (not required by Polybar):
+            # "acpi",
+        ]
+
+        if not install_packages(pkgs, run):
+            _print("❌ [230_panels-bars] Package installation failed.")
+            return False
+
+        _print("ℹ️  Polybar installed. Default system config: /etc/polybar/config.ini")
+        _print("ℹ️  Personal config (overrides system): ~/.config/polybar/config.ini")
+        _print("ℹ️  Tip: Run `sudo sensors-detect` once, then `sensors` to verify temp inputs.")
+
+        # Non-fatal checks
+        _diagnostics()
+
+        _print("""
+Tips:
+  • Create ~/.config/polybar/config.ini using the snippet in this file's header (battery, temp, date).
+  • Create ~/.config/polybar/launch.sh (also in header), then:
+      chmod +x ~/.config/polybar/launch.sh
+  • Add to i3 config:
+      exec_always --no-startup-id ~/.config/polybar/launch.sh
+  • If using i3bar previously: comment out any `bar { ... }` block in your i3 config.
+""".rstrip())
+
+        _print("✔ [230_panels-bars] Polybar ready (no user config written).")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 230_panels-bars.install failed: {exc}")
+        return False
+
+
+--- modules/240_themeing/module.py ---
+#!/usr/bin/env python3
+"""
+240_themeing — Dark theme baseline (Nord-centric) — FIXED:
+- Install Bibata cursor from AUR (not pacman).
+- Fall back to Adwaita cursor if Bibata not present (no hard fail).
+"""
+
+from __future__ import annotations
+from typing import Callable, Optional
+import shlex
+
+from utils.pacman import install_packages as pacman_install
+try:
+    from utils.yay import install_packages as yay_install
+except Exception:
+    yay_install = None  # yay optional
+
+GTK_THEME_NAME = "Nordic"                   # AUR: nordic-theme
+ICON_THEME_NAME = "Papirus-Dark"            # repo: papirus-icon-theme
+CURSOR_THEME_NAME = "Bibata-Modern-Ice"     # AUR: bibata-cursor-theme
+CURSOR_FALLBACK = "Adwaita"                 # safe fallback if Bibata missing
+QT_STYLE = "kvantum"
+KVANTUM_THEME_NAME = "Nordic-Darker"        # AUR: kvantum-theme-nordic
+
+def _run_ok(run: Callable, cmd: list[str], *, input_text: Optional[str] = None) -> bool:
+    print("$ " + " ".join(shlex.quote(c) for c in cmd))
+    res = run(cmd, check=False, capture_output=True, input_text=input_text)
+    if res.stdout: print(res.stdout.rstrip())
+    if res.stderr: print(res.stderr.rstrip())
+    return res.returncode == 0
+
+def _write_file(run: Callable, path: str, content: str) -> bool:
+    return _run_ok(run, ["install", "-Dm0644", "/dev/stdin", path], input_text=content)
+
+def _path_exists(run: Callable, path: str) -> bool:
+    return run(["test", "-e", path], check=False).returncode == 0
+
+# ---------- config writers ----------
+
+def _apply_gtk_defaults(run: Callable) -> bool:
+    gtk = f"""[Settings]
+gtk-theme-name={GTK_THEME_NAME}
+gtk-icon-theme-name={ICON_THEME_NAME}
+gtk-application-prefer-dark-theme=1
+"""
+    return _write_file(run, "/etc/gtk-3.0/settings.ini", gtk) and \
+           _write_file(run, "/etc/gtk-4.0/settings.ini", gtk)
+
+def _apply_cursor_default(run: Callable, cursor_name: str) -> bool:
+    index_theme = f"""[Icon Theme]
+Inherits={cursor_name}
+"""
+    return _write_file(run, "/usr/share/icons/default/index.theme", index_theme)
+
+def _apply_qt_defaults(run: Callable, kvantum_available: bool) -> bool:
+    style = QT_STYLE if kvantum_available else "Fusion"
+    qt_common = f"""[Appearance]
+style={style}
+icon_theme={ICON_THEME_NAME}
+"""
+    return _write_file(run, "/etc/xdg/qt5ct/qt5ct.conf", qt_common) and \
+           _write_file(run, "/etc/xdg/qt6ct/qt6ct.conf", qt_common)
+
+def _apply_kvantum_theme(run: Callable, theme_name: str) -> bool:
+    if not (_path_exists(run, "/usr/bin/kvantummanager") or _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")):
+        return True
+    kv_cfg = f"[General]\ntheme={theme_name}\n"
+    return _write_file(run, "/etc/xdg/Kvantum/kvantum.kvconfig", kv_cfg)
+
+# ---------- installs ----------
+
+def _install_repo_packages(run: Callable) -> bool:
+    pkgs = [
+        "papirus-icon-theme",    # icons (repo)
+        # cursor moved to AUR
+        "qt5ct", "qt6ct", "kvantum",
+        "gtk-engine-murrine",
+    ]
+    return pacman_install(pkgs, run)
+
+def _install_aur_packages() -> bool:
+    if yay_install is None:
+        print("⚠️  'yay' not available; skipping AUR themes (Nordic, Bibata, Kvantum Nordic).")
+        return True  # non-fatal; we’ll fall back where needed
+    pkgs = [
+        "nordic-theme",            # GTK Nord
+        "bibata-cursor-theme",     # Bibata cursor (AUR)
+        "kvantum-theme-nordic",    # Kvantum Nord
+    ]
+    return yay_install(pkgs)
+
+def install(run: Callable) -> bool:
+    try:
+        print("▶ [240_themeing] Applying system dark theme defaults (Nord-centric)…")
+
+        if not _install_repo_packages(run):
+            print("❌ Failed installing base theming packages from repos.")
+            return False
+
+        if not _install_aur_packages():
+            print("⚠️  AUR theming packages failed to install. Continuing with fallbacks.")
+
+        kvantum_available = _path_exists(run, "/usr/share/Kvantum") or \
+                            _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")
+
+        # Write GTK defaults
+        if not _apply_gtk_defaults(run):
+            print("❌ Failed writing GTK defaults.")
+            return False
+
+        # Cursor: prefer Bibata if installed, otherwise fallback to Adwaita
+        bibata_present = _path_exists(run, f"/usr/share/icons/{CURSOR_THEME_NAME}")
+        cursor_to_set = CURSOR_THEME_NAME if bibata_present else CURSOR_FALLBACK
+        if not bibata_present:
+            print(f"⚠️  Bibata cursor not found in /usr/share/icons; using fallback cursor: {CURSOR_FALLBACK}")
+        if not _apply_cursor_default(run, cursor_to_set):
+            print("❌ Failed setting system cursor default.")
+            return False
+
+        # Qt defaults + optional Kvantum theme
+        if not _apply_qt_defaults(run, kvantum_available=kvantum_available):
+            print("❌ Failed writing Qt defaults.")
+            return False
+        _apply_kvantum_theme(run, KVANTUM_THEME_NAME)
+
+        # Visibility (non-fatal)
+        _run_ok(run, ["bash", "-lc", "echo GTK3 -> && cat /etc/gtk-3.0/settings.ini || true"])
+        _run_ok(run, ["bash", "-lc", "echo GTK4 -> && cat /etc/gtk-4.0/settings.ini || true"])
+        _run_ok(run, ["bash", "-lc", "echo Cursor -> && cat /usr/share/icons/default/index.theme || true"])
+        _run_ok(run, ["bash", "-lc", "echo qt5ct -> && cat /etc/xdg/qt5ct/qt5ct.conf || true"])
+        _run_ok(run, ["bash", "-lc", "echo qt6ct -> && cat /etc/xdg/qt6ct/qt6ct.conf || true"])
+
+        print("""
+Tips:
+  • If Bibata didn’t install, run:  yay -S bibata-cursor-theme
+    Then re-run this module to switch system cursor to Bibata.
+  • Papirus icons & Kvantum engine are from official repos.
+  • Per-user fine-tuning (recommended):
+      ~/.config/gtk-3.0/settings.ini, ~/.config/gtk-4.0/settings.ini
+      ~/.config/qt5ct/qt5ct.conf, ~/.config/qt6ct/qt6ct.conf
+      ~/.config/Kvantum/kvantum.kvconfig
+""".rstrip())
+
+        print("✔ [240_themeing] Dark theme defaults applied (with safe fallbacks).")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 240_themeing.install failed: {exc}")
+        return False
 
 
 --- utils/module_loader.py ---

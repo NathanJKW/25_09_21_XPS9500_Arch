@@ -1,130 +1,150 @@
 #!/usr/bin/env python3
 """
-160_devtools — Containers (Podman + NVIDIA GPU) & Virtualization (QEMU/KVM)
+220_window_manager — i3 on X11 (with rofi, picom, dunst, polkit agent)
 
 What this module does
 ---------------------
-- Installs handy hardware CLIs: usbutils (lsusb), pciutils (lspci)
-- Sets up Podman for *rootless* containers and enables the **user** socket
-  (Docker-API compatible via DOCKER_HOST). Handles headless/SSH sessions using:
-  - `systemctl --user --machine nathan@.host ...` (preferred)
-  - Fallback with explicit XDG/DBUS env for the user
-  - Final fallback to *system* podman.socket (opt-in if user socket cannot be enabled)
-- Adds NVIDIA Container Toolkit (CDI) so `podman run --gpus all ...` works
-- Installs virtualization stack: qemu-desktop, libvirt, virt-manager, edk2-ovmf, dnsmasq
-- Enables libvirtd, adds user to 'kvm' and 'libvirt', and autostarts the default libvirt NAT network
+- Installs a standard i3 X11 stack:
+  * Core: i3-wm, i3status
+  * Launcher: rofi
+  * Lock/idle helpers: i3lock, xss-lock, xorg-xset
+  * UX: picom (compositor), dunst (notifications), feh (wallpaper), arandr (displays), xclip (clipboard)
+  * QoL: playerctl, brightnessctl, flameshot, lxappearance
+  * Polkit agent: polkit-gnome
+- Prints post-install tips and quick tests.
+- Does NOT write per-user config and does NOT touch display manager services.
 
-Idempotent & non-interactive by design. Uses the sudo-session `run` from utils.sudo_session.
+Idempotency & Safety
+--------------------
+- Pacman installs via utils.pacman.install_packages (uses --needed).
+- No service changes here (210_login_manager handles DM).
+- No writes to $HOME or /etc configs for i3/rofi/picom/dunst (leave to 4xx dotfiles).
+
+i3 config snippet (put this in your dotfiles, e.g. ~/.config/i3/config)
+-----------------------------------------------------------------------
+# Launcher
+bindsym $mod+d exec rofi -show drun
+
+# Idle + lock (example timings)
+exec --no-startup-id xset s 300 60
+exec --no-startup-id xset +dpms
+exec --no-startup-id xss-lock -n /usr/share/doc/xss-lock/dim-screen.sh -- i3lock -n
+
+# Compositor, notifications, polkit agent
+exec --no-startup-id picom --experimental-backends
+exec --no-startup-id dunst
+exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+
+# QoL helpers (optional binds)
+# bindsym XF86AudioPlay exec playerctl play-pause
+# bindsym XF86MonBrightnessUp exec brightnessctl set +5%
+# bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+# bindsym $mod+Print exec flameshot gui
 """
 
 from __future__ import annotations
-
-import getpass
-import pwd
 from typing import Callable, Iterable
+import subprocess
+
 from utils.pacman import install_packages
 
 
-def _print_action(txt: str) -> None:
-    print(f"$ {txt}")
+# ------------------------------- helpers -------------------------------------
+
+def _print(msg: str) -> None:
+    print(msg)
 
 
-def _run_ok(run: Callable, cmd: list[str]) -> bool:
-    """Run a command via the sudo runner, print output, return True on rc==0."""
-    _print_action(" ".join(cmd))
-    res = run(cmd, check=False, capture_output=True)
-    if res.stdout:
-        print(res.stdout.rstrip())
-    if res.stderr:
-        print(res.stderr.rstrip())
-    return res.returncode == 0
+def _run_user(cmd: Iterable[str]) -> None:
+    """Run a harmless command as the invoking user (no sudo)."""
+    _print("$ " + " ".join(cmd))
+    try:
+        res = subprocess.run(list(cmd), check=False, text=True, capture_output=True)
+        if res.stdout:
+            print(res.stdout.rstrip())
+        if res.stderr:
+            print(res.stderr.rstrip())
+    except Exception as exc:
+        print(f"⚠️  Skipping user command {' '.join(cmd)}: {exc}")
 
 
-def _enable_units(run: Callable, units: Iterable[str]) -> bool:
-    """Enable/start systemd system units."""
-    for u in units:
-        if not _run_ok(run, ["systemctl", "enable", "--now", u]):
-            print(f"ERROR: failed to enable/start {u}")
-            return False
-    return True
+def _check_presence() -> None:
+    """Best-effort visibility: show versions and presence of key tools."""
+    _run_user(["bash", "-lc", "i3 --version || true"])
+    _run_user(["bash", "-lc", "rofi -v || true"])
+    _run_user(["bash", "-lc", "command -v i3lock >/dev/null 2>&1 && echo 'i3lock present' || echo 'i3lock missing'"])
+    _run_user(["bash", "-lc", "command -v xss-lock >/dev/null 2>&1 && echo 'xss-lock present' || echo 'xss-lock missing'"])
+    _run_user(["bash", "-lc", "command -v picom >/dev/null 2>&1 && echo 'picom present' || echo 'picom missing'"])
+    _run_user(["bash", "-lc", "command -v dunst >/dev/null 2>&1 && echo 'dunst present' || echo 'dunst missing'"])
+    _run_user(["bash", "-lc", "command -v xset  >/dev/null 2>&1 && echo 'xset present'  || echo 'xset missing'"])
+    _run_user(["bash", "-lc", "command -v playerctl >/dev/null 2>&1 && echo 'playerctl present' || echo 'playerctl missing'"])
+    _run_user(["bash", "-lc", "command -v brightnessctl >/dev/null 2>&1 && echo 'brightnessctl present' || echo 'brightnessctl missing'"])
+    _run_user(["bash", "-lc", "command -v flameshot >/dev/null 2>&1 && echo 'flameshot present' || echo 'flameshot missing'"])
+    _run_user(["bash", "-lc", "command -v lxappearance >/dev/null 2>&1 && echo 'lxappearance present' || echo 'lxappearance missing'"])
+    _run_user(["bash", "-lc", "command -v /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 >/dev/null 2>&1 && echo 'polkit-gnome agent present' || echo 'polkit-gnome agent missing'"])
 
 
-def _add_user_to_groups(run: Callable, user: str, groups: Iterable[str]) -> None:
-    """Best-effort user group membership (no hard failure if already a member)."""
-    for g in groups:
-        if not _run_ok(run, ["usermod", "-aG", g, user]):
-            print(f"⚠️  could not add {user} to group '{g}' (may already be a member).")
-
-
-def _enable_podman_user_socket(run: Callable, user: str) -> bool:
-    """
-    Enable the rootless Podman user socket for `user`, robust in headless/SSH sessions.
-    Tries machine transport first, then an env-injected fallback. Returns True on success.
-    """
-    # Allow user manager to run outside of active logins
-    _run_ok(run, ["loginctl", "enable-linger", user])
-
-    # Preferred: systemd "machine" transport to the user's systemd
-    if _run_ok(run, ["systemctl", "--user", "--machine", f"{user}@.host", "enable", "--now", "podman.socket"]):
-        return True
-
-    # Fallback: set XDG_RUNTIME_DIR + DBUS address for the target user and call systemctl --user
-    uid = pwd.getpwnam(user).pw_uid
-    xdg = f"/run/user/{uid}"
-    env_line = f"XDG_RUNTIME_DIR={xdg} DBUS_SESSION_BUS_ADDRESS=unix:path={xdg}/bus"
-    cmd = ["runuser", "-l", user, "-c", f"{env_line} systemctl --user enable --now podman.socket"]
-    if _run_ok(run, cmd):
-        return True
-
-    return False
-
+# ------------------------------- main ----------------------------------------
 
 def install(run: Callable) -> bool:
-    print("▶ [160_devtools] Podman (rootless + GPU) & QEMU/KVM/libvirt setup")
+    try:
+        _print("▶ [220_window_manager] Installing i3 (X11) stack + helpers…")
 
-    user = getpass.getuser()
+        pkgs = [
+            # Core WM stack
+            "i3-wm",
+            "i3status",
 
-    # 0) Ensure handy hardware CLIs (you were missing lsusb earlier)
-    if not install_packages(["usbutils", "pciutils"], run):
-        return False
+            # Launcher
+            "rofi",
 
-    # 1) Podman (rootless) & compose helper
-    if not install_packages(["podman", "podman-compose"], run):
-        return False
+            # Lock / idle helpers
+            "i3lock",
+            "xss-lock",
+            "xorg-xset",
 
-    if not _enable_podman_user_socket(run, user):
-        print("❌ Could not enable user-level podman.socket.")
-        # Optional fallback to system-level podman socket to avoid hard failure:
-        print("⚠️  Falling back to system-level podman.socket (/run/podman/podman.sock).")
-        if not _enable_units(run, ["podman.socket"]):
-            print("❌ Failed to enable system-level podman.socket as well.")
+            # UX & compositor & utilities
+            "picom",
+            "dunst",
+            "feh",
+            "arandr",
+            "xclip",
+
+            # QoL
+            "playerctl",
+            "brightnessctl",
+            "flameshot",
+            "lxappearance",
+
+            # Polkit agent for GUI auth prompts
+            "polkit-gnome",
+        ]
+
+        if not install_packages(pkgs, run):
+            _print("❌ [220_window_manager] Package installation failed.")
             return False
-        print("ℹ️  For Docker-API clients, use: DOCKER_HOST=unix:///run/podman/podman.sock")
-    else:
-        print("✔ Rootless Podman user socket enabled.")
-        print("ℹ️  For Docker-API clients, use: DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock")
 
-    # 2) GPU in containers: NVIDIA Container Toolkit (CDI)
-    if not install_packages(["nvidia-container-toolkit"], run):
+        # Session integration: i3 desktop file is provided by i3-wm under /usr/share/xsessions/i3.desktop.
+        _print("ℹ️  i3 session installed. Your display manager (e.g., SDDM) should list 'i3' as a session option.")
+
+        # Best-effort diagnostics (non-fatal)
+        _check_presence()
+
+        # Tips
+        _print("""
+Tips:
+  • Add the autostart lines to your i3 config (~/.config/i3/config), see the snippet in this file header.
+  • Test locker after starting xss-lock via your i3 autostart:
+      $ xset s activate
+  • i3 reload/restart:
+      $ i3-msg reload
+      $ i3-msg restart
+  • In your display manager, select the 'i3' session at login.
+""".rstrip())
+
+        _print("✔ [220_window_manager] i3 window manager stack is ready (no user config written).")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 220_window_manager.install failed: {exc}")
         return False
-    print("✔ NVIDIA Container Toolkit installed (CDI).")
-    print("   Test: podman run --rm --gpus all nvidia/cuda:12.4.1-base-archlinux nvidia-smi")
-
-    # 3) Virtualization: QEMU/KVM + libvirt + virt-manager + OVMF + NAT
-    if not install_packages(["qemu-desktop", "libvirt", "virt-manager", "edk2-ovmf", "dnsmasq"], run):
-        return False
-
-    if not _enable_units(run, ["libvirtd.service"]):
-        return False
-
-    # Add user to groups for device/session access
-    _add_user_to_groups(run, user, ["kvm", "libvirt"])
-
-    # Start & autostart default NAT network (best-effort; ignore failures if it exists)
-    _print_action("virsh net-start default  # best-effort")
-    run(["virsh", "net-start", "default"], check=False, capture_output=True)
-    _print_action("virsh net-autostart default")
-    run(["virsh", "net-autostart", "default"], check=False, capture_output=True)
-
-    print("✔ [160_devtools] Complete. You may need to log out/in for new group membership to take effect.")
-    return True

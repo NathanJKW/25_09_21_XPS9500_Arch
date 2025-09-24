@@ -11,7 +11,7 @@ import argparse
 WHITELIST_EXTENSIONS = [".py", ".sh", ".qml", ".desktop"]
 
 # These folders will be excluded completely
-BLACKLIST_FOLDERS = ["__pycache__", ".git", ".venv", ".prompts"]
+BLACKLIST_FOLDERS = ["__pycache__", ".git", ".venv", ".prompts", "theme"] 
 
 # These specific files will be excluded
 BLACKLIST_FILES = ["context.py", "README.md", "alpine.min.js", "context.md"]

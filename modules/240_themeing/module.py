@@ -1,130 +1,150 @@
 #!/usr/bin/env python3
 """
-160_devtools — Containers (Podman + NVIDIA GPU) & Virtualization (QEMU/KVM)
-
-What this module does
----------------------
-- Installs handy hardware CLIs: usbutils (lsusb), pciutils (lspci)
-- Sets up Podman for *rootless* containers and enables the **user** socket
-  (Docker-API compatible via DOCKER_HOST). Handles headless/SSH sessions using:
-  - `systemctl --user --machine nathan@.host ...` (preferred)
-  - Fallback with explicit XDG/DBUS env for the user
-  - Final fallback to *system* podman.socket (opt-in if user socket cannot be enabled)
-- Adds NVIDIA Container Toolkit (CDI) so `podman run --gpus all ...` works
-- Installs virtualization stack: qemu-desktop, libvirt, virt-manager, edk2-ovmf, dnsmasq
-- Enables libvirtd, adds user to 'kvm' and 'libvirt', and autostarts the default libvirt NAT network
-
-Idempotent & non-interactive by design. Uses the sudo-session `run` from utils.sudo_session.
+240_themeing — Dark theme baseline (Nord-centric) — FIXED:
+- Install Bibata cursor from AUR (not pacman).
+- Fall back to Adwaita cursor if Bibata not present (no hard fail).
 """
 
 from __future__ import annotations
+from typing import Callable, Optional
+import shlex
 
-import getpass
-import pwd
-from typing import Callable, Iterable
-from utils.pacman import install_packages
+from utils.pacman import install_packages as pacman_install
+try:
+    from utils.yay import install_packages as yay_install
+except Exception:
+    yay_install = None  # yay optional
 
+GTK_THEME_NAME = "Nordic"                   # AUR: nordic-theme
+ICON_THEME_NAME = "Papirus-Dark"            # repo: papirus-icon-theme
+CURSOR_THEME_NAME = "Bibata-Modern-Ice"     # AUR: bibata-cursor-theme
+CURSOR_FALLBACK = "Adwaita"                 # safe fallback if Bibata missing
+QT_STYLE = "kvantum"
+KVANTUM_THEME_NAME = "Nordic-Darker"        # AUR: kvantum-theme-nordic
+GTK_FALLBACK_THEME = "Adwaita-dark"         # repo fallback if Nordic missing
 
-def _print_action(txt: str) -> None:
-    print(f"$ {txt}")
-
-
-def _run_ok(run: Callable, cmd: list[str]) -> bool:
-    """Run a command via the sudo runner, print output, return True on rc==0."""
-    _print_action(" ".join(cmd))
-    res = run(cmd, check=False, capture_output=True)
-    if res.stdout:
-        print(res.stdout.rstrip())
-    if res.stderr:
-        print(res.stderr.rstrip())
+def _run_ok(run: Callable, cmd: list[str], *, input_text: Optional[str] = None) -> bool:
+    print("$ " + " ".join(shlex.quote(c) for c in cmd))
+    res = run(cmd, check=False, capture_output=True, input_text=input_text)
+    if res.stdout: print(res.stdout.rstrip())
+    if res.stderr: print(res.stderr.rstrip())
     return res.returncode == 0
 
+def _write_file(run: Callable, path: str, content: str) -> bool:
+    return _run_ok(run, ["install", "-Dm0644", "/dev/stdin", path], input_text=content)
 
-def _enable_units(run: Callable, units: Iterable[str]) -> bool:
-    """Enable/start systemd system units."""
-    for u in units:
-        if not _run_ok(run, ["systemctl", "enable", "--now", u]):
-            print(f"ERROR: failed to enable/start {u}")
-            return False
-    return True
+def _path_exists(run: Callable, path: str) -> bool:
+    return run(["test", "-e", path], check=False).returncode == 0
 
+# ---------- config writers ----------
 
-def _add_user_to_groups(run: Callable, user: str, groups: Iterable[str]) -> None:
-    """Best-effort user group membership (no hard failure if already a member)."""
-    for g in groups:
-        if not _run_ok(run, ["usermod", "-aG", g, user]):
-            print(f"⚠️  could not add {user} to group '{g}' (may already be a member).")
+def _apply_gtk_defaults(run: Callable) -> bool:
+    gtk = f"""[Settings]
+gtk-theme-name={GTK_THEME_NAME}
+gtk-icon-theme-name={ICON_THEME_NAME}
+gtk-application-prefer-dark-theme=1
+"""
+    return _write_file(run, "/etc/gtk-3.0/settings.ini", gtk) and \
+           _write_file(run, "/etc/gtk-4.0/settings.ini", gtk)
 
+def _apply_cursor_default(run: Callable, cursor_name: str) -> bool:
+    index_theme = f"""[Icon Theme]
+Inherits={cursor_name}
+"""
+    return _write_file(run, "/usr/share/icons/default/index.theme", index_theme)
 
-def _enable_podman_user_socket(run: Callable, user: str) -> bool:
-    """
-    Enable the rootless Podman user socket for `user`, robust in headless/SSH sessions.
-    Tries machine transport first, then an env-injected fallback. Returns True on success.
-    """
-    # Allow user manager to run outside of active logins
-    _run_ok(run, ["loginctl", "enable-linger", user])
+def _apply_qt_defaults(run: Callable, kvantum_available: bool) -> bool:
+    style = QT_STYLE if kvantum_available else "Fusion"
+    qt_common = f"""[Appearance]
+style={style}
+icon_theme={ICON_THEME_NAME}
+"""
+    return _write_file(run, "/etc/xdg/qt5ct/qt5ct.conf", qt_common) and \
+           _write_file(run, "/etc/xdg/qt6ct/qt6ct.conf", qt_common)
 
-    # Preferred: systemd "machine" transport to the user's systemd
-    if _run_ok(run, ["systemctl", "--user", "--machine", f"{user}@.host", "enable", "--now", "podman.socket"]):
+def _apply_kvantum_theme(run: Callable, theme_name: str) -> bool:
+    if not (_path_exists(run, "/usr/bin/kvantummanager") or _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")):
         return True
+    kv_cfg = f"[General]\ntheme={theme_name}\n"
+    return _write_file(run, "/etc/xdg/Kvantum/kvantum.kvconfig", kv_cfg)
 
-    # Fallback: set XDG_RUNTIME_DIR + DBUS address for the target user and call systemctl --user
-    uid = pwd.getpwnam(user).pw_uid
-    xdg = f"/run/user/{uid}"
-    env_line = f"XDG_RUNTIME_DIR={xdg} DBUS_SESSION_BUS_ADDRESS=unix:path={xdg}/bus"
-    cmd = ["runuser", "-l", user, "-c", f"{env_line} systemctl --user enable --now podman.socket"]
-    if _run_ok(run, cmd):
-        return True
+# ---------- installs ----------
 
-    return False
+def _install_repo_packages(run: Callable) -> bool:
+    pkgs = [
+        "papirus-icon-theme",    # icons (repo)
+        # cursor moved to AUR
+        "qt5ct", "qt6ct", "kvantum",
+        "gtk-engine-murrine",
+    ]
+    return pacman_install(pkgs, run)
 
+def _install_aur_packages() -> bool:
+    if yay_install is None:
+        print("⚠️  'yay' not available; skipping AUR themes (Nordic, Bibata, Kvantum Nordic).")
+        return True  # non-fatal; we’ll fall back where needed
+    pkgs = [
+        "nordic-theme",            # GTK Nord
+        "bibata-cursor-theme",     # Bibata cursor (AUR)
+        "kvantum-theme-nordic",    # Kvantum Nord
+    ]
+    return yay_install(pkgs)
 
 def install(run: Callable) -> bool:
-    print("▶ [160_devtools] Podman (rootless + GPU) & QEMU/KVM/libvirt setup")
+    try:
+        print("▶ [240_themeing] Applying system dark theme defaults (Nord-centric)…")
 
-    user = getpass.getuser()
-
-    # 0) Ensure handy hardware CLIs (you were missing lsusb earlier)
-    if not install_packages(["usbutils", "pciutils"], run):
-        return False
-
-    # 1) Podman (rootless) & compose helper
-    if not install_packages(["podman", "podman-compose"], run):
-        return False
-
-    if not _enable_podman_user_socket(run, user):
-        print("❌ Could not enable user-level podman.socket.")
-        # Optional fallback to system-level podman socket to avoid hard failure:
-        print("⚠️  Falling back to system-level podman.socket (/run/podman/podman.sock).")
-        if not _enable_units(run, ["podman.socket"]):
-            print("❌ Failed to enable system-level podman.socket as well.")
+        if not _install_repo_packages(run):
+            print("❌ Failed installing base theming packages from repos.")
             return False
-        print("ℹ️  For Docker-API clients, use: DOCKER_HOST=unix:///run/podman/podman.sock")
-    else:
-        print("✔ Rootless Podman user socket enabled.")
-        print("ℹ️  For Docker-API clients, use: DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock")
 
-    # 2) GPU in containers: NVIDIA Container Toolkit (CDI)
-    if not install_packages(["nvidia-container-toolkit"], run):
+        if not _install_aur_packages():
+            print("⚠️  AUR theming packages failed to install. Continuing with fallbacks.")
+
+        kvantum_available = _path_exists(run, "/usr/share/Kvantum") or \
+                            _path_exists(run, "/usr/lib/qt/plugins/styles/libkvantum.so")
+
+        # Write GTK defaults
+        if not _apply_gtk_defaults(run):
+            print("❌ Failed writing GTK defaults.")
+            return False
+
+        # Cursor: prefer Bibata if installed, otherwise fallback to Adwaita
+        bibata_present = _path_exists(run, f"/usr/share/icons/{CURSOR_THEME_NAME}")
+        cursor_to_set = CURSOR_THEME_NAME if bibata_present else CURSOR_FALLBACK
+        if not bibata_present:
+            print(f"⚠️  Bibata cursor not found in /usr/share/icons; using fallback cursor: {CURSOR_FALLBACK}")
+        if not _apply_cursor_default(run, cursor_to_set):
+            print("❌ Failed setting system cursor default.")
+            return False
+
+        # Qt defaults + optional Kvantum theme
+        if not _apply_qt_defaults(run, kvantum_available=kvantum_available):
+            print("❌ Failed writing Qt defaults.")
+            return False
+        _apply_kvantum_theme(run, KVANTUM_THEME_NAME)
+
+        # Visibility (non-fatal)
+        _run_ok(run, ["bash", "-lc", "echo GTK3 -> && cat /etc/gtk-3.0/settings.ini || true"])
+        _run_ok(run, ["bash", "-lc", "echo GTK4 -> && cat /etc/gtk-4.0/settings.ini || true"])
+        _run_ok(run, ["bash", "-lc", "echo Cursor -> && cat /usr/share/icons/default/index.theme || true"])
+        _run_ok(run, ["bash", "-lc", "echo qt5ct -> && cat /etc/xdg/qt5ct/qt5ct.conf || true"])
+        _run_ok(run, ["bash", "-lc", "echo qt6ct -> && cat /etc/xdg/qt6ct/qt6ct.conf || true"])
+
+        print("""
+Tips:
+  • If Bibata didn’t install, run:  yay -S bibata-cursor-theme
+    Then re-run this module to switch system cursor to Bibata.
+  • Papirus icons & Kvantum engine are from official repos.
+  • Per-user fine-tuning (recommended):
+      ~/.config/gtk-3.0/settings.ini, ~/.config/gtk-4.0/settings.ini
+      ~/.config/qt5ct/qt5ct.conf, ~/.config/qt6ct/qt6ct.conf
+      ~/.config/Kvantum/kvantum.kvconfig
+""".rstrip())
+
+        print("✔ [240_themeing] Dark theme defaults applied (with safe fallbacks).")
+        return True
+
+    except Exception as exc:
+        print(f"ERROR: 240_themeing.install failed: {exc}")
         return False
-    print("✔ NVIDIA Container Toolkit installed (CDI).")
-    print("   Test: podman run --rm --gpus all nvidia/cuda:12.4.1-base-archlinux nvidia-smi")
-
-    # 3) Virtualization: QEMU/KVM + libvirt + virt-manager + OVMF + NAT
-    if not install_packages(["qemu-desktop", "libvirt", "virt-manager", "edk2-ovmf", "dnsmasq"], run):
-        return False
-
-    if not _enable_units(run, ["libvirtd.service"]):
-        return False
-
-    # Add user to groups for device/session access
-    _add_user_to_groups(run, user, ["kvm", "libvirt"])
-
-    # Start & autostart default NAT network (best-effort; ignore failures if it exists)
-    _print_action("virsh net-start default  # best-effort")
-    run(["virsh", "net-start", "default"], check=False, capture_output=True)
-    _print_action("virsh net-autostart default")
-    run(["virsh", "net-autostart", "default"], check=False, capture_output=True)
-
-    print("✔ [160_devtools] Complete. You may need to log out/in for new group membership to take effect.")
-    return True

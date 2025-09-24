@@ -55,7 +55,7 @@ ACTION=="unbind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0302
 
 MODPROBE_CONTENT = """\
 # Deeper NVIDIA runtime power management for Turing Optimus notebooks
-options nvidia "NVreg_DynamicPowerManagement=0x02"
+options nvidia NVreg_DynamicPowerManagement=0x02
 # If you encounter odd D3/runtime PM issues on specific driver/firmware combos, try the more conservative:
 # options nvidia NVreg_DynamicPowerManagement=0x01
 """
