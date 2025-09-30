@@ -1,241 +1,127 @@
-Got it 👍 — here’s your full **polished README** with the tightened-up Arch install guide merged seamlessly with the 
-# 25_09_21_XPS9500_Arch
+# Hyprland Daily-Driver Install Roadmap (Arch Linux)
 
-## 🖥️ Preparing a Fresh Arch Install
-
-### 1. Update the Arch installer (from ISO)
-```bash
-pacman -Syu archinstall
-````
+This document lists everything needed to set up **Hyprland** as a **stable daily-driver** on a minimal Arch Linux install.  
+The order is chronological, reflecting how you’d realistically install/configure packages.  
 
 ---
 
-### 2. Connect to Wi-Fi
+## 1. System Resilience & Base Tools
 
-1. **List network interfaces**
-
-   ```bash
-   ip link
-   ```
-
-   Look for something like `wlan0` or `wlp2s0`.
-
-2. **Bring interface up**
-
-   ```bash
-   ip link set wlan0 up
-   ```
-
-   (replace `wlan0` with your device name)
-
-3. **Use `iwctl` to connect**
-
-   ```bash
-   iwctl
-   ```
-
-   Inside the prompt:
-
-   ```
-   device list
-   station wlan0 scan
-   station wlan0 get-networks
-   station wlan0 connect YOUR_WIFI_NAME
-   exit
-   ```
-
-   Enter your Wi-Fi password when prompted.
-
-4. **Verify internet**
-
-   ```bash
-   ping -c 3 archlinux.org
-   ```
+- **btrfs-progs** → Core Btrfs filesystem utilities.  
+- **snapper** → Snapshot manager for Btrfs.  
+- **snap-pac** → Creates automatic snapshots before pacman upgrades.  
+- **grub-btrfs** → Integrates Snapper snapshots into the GRUB boot menu.  
+- **git** → Needed for dotfiles, config management, and AUR packages.  
+- **base-devel** → Essential build tools (required for AUR helpers like `yay` or `paru`).  
 
 ---
 
-### 3. Enable SSH (optional but recommended)
+## 2. Hyprland Core
 
-1. **Check if installed**
-
-   ```bash
-   pacman -Qs openssh
-   ```
-
-   If missing:
-
-   ```bash
-   pacman -S openssh
-   ```
-
-2. **Start and enable service**
-
-   ```bash
-   systemctl enable --now sshd
-   ```
-
-3. **Verify it’s running**
-
-   ```bash
-   systemctl status sshd
-   ```
-
-4. **Quick test**
-
-   ```bash
-   ssh localhost
-   ```
+- **hyprland** → The compositor itself (pulls in core deps: cairo, mesa, wayland, libseat, libxkbcommon, etc.).  
 
 ---
 
-# ⚙️ Unattended Arch Provisioning — Module Layout
+## 3. Session & Permissions
 
-This project provisions an Arch Linux system (built from a minimal **archinstall** base) using modular steps.
-Modules are numbered with a **3-digit scheme**:
-
-* **1st digit** → category
-* **2nd + 3rd digits** → subcategory (with gaps left for expansion)
-
-Each module lives under `modules/<number_name>/module.py` and implements an `install(run)` function.
-Execution order is determined by the numeric prefix (lowest first).
-
----
-
-## 📊 Categories & Subcategories
-
-### 0xx — Core System
-
-Things needed on *every* machine before higher layers.
-
-* **000\_core** — base essentials (git, curl, pacman/yay setup, reflector)
-* **010\_security** — sudo, polkit (baseline auth, not firewall)
-* **020\_system-defaults** — sysctl, journald, logrotate
-* **030\_backup** — timeshift, snapper, borg
-* **040\_fonts** — system/user fonts (optional early install)
+- **systemd** → Provides logind seat/session management.  
+- **polkit** → PolicyKit framework for privilege elevation.  
+- **hyprpolkitagent** → Polkit authentication agent tailored for Hyprland.  
+- **uwsm** → Universal Wayland Session Manager (improves DM + compositor integration).  
+- **sddm** → Display/login manager (Qt-based, Wayland support).  
+- **greetd** *(alternative)* → Minimal Wayland-native login manager.  
+- **sudo** → Privilege escalation tool (not always installed by default).  
 
 ---
 
-### 1xx — Hardware & Platform
+## 4. Keyring / Secrets
 
-Drivers, firmware, power management. Run **before the desktop stack** so GPU/audio/input works.
-
-* **100\_firmware** — fwupd, microcode
-* **110\_power** — tlp, auto-cpufreq, thermald
-* **120\_input** — libinput, touchpads, special keyboards
-* **130\_gpu** — mesa, vulkan, nvidia/amd/intel utils
-* **140\_audio** — pipewire, alsa, bluetooth audio
-* **150\_network** — networking tools beyond installer defaults
-* **160\_devtools** — docker, podman, compilers (kernel-dependent tools)
+- **gnome-keyring** → Secret storage (Wi-Fi, browser passwords, SSH keys).  
+- **libsecret** → Library interface used by apps to access gnome-keyring.  
+- **seahorse** *(optional)* → GUI for managing secrets stored in gnome-keyring.  
+- **kwallet** *(alternative)* → KDE’s wallet manager.  
 
 ---
 
-### 2xx — Desktop Stack
+## 5. System Services
 
-Windowing system, login manager, WM/DE, theming.
+### Audio
+- **pipewire** → Modern audio/video server (replaces PulseAudio, JACK).  
+- **wireplumber** → PipeWire session/policy manager.  
+- **pavucontrol** → GUI mixer for audio devices.  
+- **pamixer** → CLI volume control.  
 
-* **200\_display-server** — Xorg or Wayland base
-* **210\_login-manager** — SDDM, GDM, LightDM
-* **220\_window-manager** — i3, sway, hyprland, etc.
-* **230\_panels-bars** — polybar, waybar
-* **240\_theming** — GTK/Qt themes, cursors, icons
+### Networking
+- **networkmanager** → Wired & Wi-Fi network manager.  
+- **network-manager-applet** → GUI tray applet for controlling NetworkManager.  
 
----
+### Bluetooth
+- **bluez**, **bluez-utils** → Bluetooth stack + utilities.  
+- **blueman** → GUI manager for Bluetooth devices.  
 
-### 3xx — Applications
+### Storage
+- **gvfs**, **gvfs-mtp** → Automount USB drives, Android, network shares.  
+- **udisks2** → Disk management backend.  
+- **ntfs-3g** → NTFS read/write support.  
+- **exfatprogs** → exFAT filesystem support.  
 
-Grouped broadly; gaps left for expansion.
-
-* **300\_cli-tools** — shell (zsh/bash), tmux, fzf, ripgrep, etc.
-* **320\_editors** — vim/neovim, vscode, IDEs
-* **340\_browsers** — firefox, chromium
-* **360\_office** — libreoffice, PDF tools
-* **380\_media** — players, image viewers, codecs
-
----
-
-### 4xx — Dotfiles & User Config
-
-Glue that ties your repo/configs into place.
-
-* **400\_dotfiles-core** — clone or update dotfiles repo
-* **410\_symlinks** — symlink configs to `$HOME` and `/etc`
-* **420\_services** — enable/start wanted systemd services
-* **430\_shell-env** — env vars, Xresources, autostarts
+### Power (laptops)
+- **power-profiles-daemon** → Simple power profile switching.  
+- **tlp** → Advanced laptop power management.  
+- **upower** → Battery stats provider.  
+- **acpid** → ACPI daemon for power button/lid events.  
 
 ---
 
-### 5xx — Security & Policies
+## 6. User Environment (UI Layer)
 
-Optional hardening, after system is otherwise usable.
-
-* **500\_firewall** — ufw, nftables
-* **510\_audit** — auditd, advanced policies
-
----
-
-### 6xx — Extras / Ecosystems
-
-Nice-to-have, not base system.
-
-* **600\_gaming** — steam, lutris, proton, wine
-* **620\_creative** — audio/video production, design tools
-* **640\_remote** — tailscale, syncthing, ssh extras
+- **swaync** → Wayland-native notifications + tray + history (recommended).  
+- **waybar** → Status bar (network, volume, battery, workspaces).  
+- **hyprpaper** → Wallpaper manager.  
+- **hypridle** → Idle manager (auto-lock, suspend).  
+- **hyprlock** → Screen locker for Hyprland.  
+- **wl-clipboard** → Wayland clipboard utilities (`wl-copy`, `wl-paste`).  
+- **brightnessctl** → Adjust backlight brightness.  
+- **gammastep** → Night light / color temperature control.  
 
 ---
 
-## ✅ Recommended Run Order
+## 7. Daily Essentials
 
-1. **0xx Core System**
-2. **1xx Hardware & Platform**
-3. **2xx Desktop Stack**
-4. **3xx Applications**
-5. **4xx Dotfiles & User Config**
-6. **5xx Security & Policies**
-7. **6xx Extras / Ecosystems**
-
-This ensures:
-
-* Hardware (1xx) is configured **before** the desktop environment (2xx).
-* Security/hardening (5xx) is applied **after** the system is working.
+- **ttf-dejavu**, **noto-fonts**, **noto-fonts-emoji** → Fonts (text, Unicode, emoji).  
+- **alacritty / kitty / foot** → Terminal emulator (choose one).  
+- **thunar / dolphin / pcmanfm** → File manager (choose one).  
+- **wofi / rofi-wayland / fuzzel** → App launcher/menu (choose one).  
+- **xdg-user-dirs** → Creates standard user folders (`Documents`, `Downloads`, etc.).  
 
 ---
 
-## 🛠 How to Add a Module
+## 8. Applications
 
-1. Create a new folder under `modules/` with the correct number and name, e.g.:
-
-   ```
-   modules/220_window-manager/module.py
-   ```
-2. Implement an `install(run)` function inside `module.py`.
-3. The `module_loader` will automatically discover and run it.
+- **firefox / chromium** → Browser (choose one).  
+- **libreoffice-fresh** → Office suite.  
+- **vlc / mpv** → Media player (choose one).  
 
 ---
 
-## Example Tree
+# ✅ Notes
 
-```
-modules/
-000_core/
-  module.py
-020_system-defaults/
-  module.py
-100_firmware/
-  module.py
-130_gpu/
-  module.py
-200_display-server/
-  module.py
-220_window-manager/
-  module.py
-300_cli-tools/
-  module.py
-400_dotfiles-core/
-  module.py
-410_symlinks/
-  module.py
-500_firewall/
-  module.py
-600_gaming/
-  module.py
-```
+- **Display Manager**: SDDM is the easiest for beginners; advanced users may prefer `greetd`.  
+- **Notifications**: `swaync` is recommended for a full desktop feel; alternatives are `mako` (lightweight) or `dunst` (classic, via XWayland).  
+- **Snapshots**: Only needed if you use **Btrfs**; skip if you’re on ext4.  
+- **Fonts**: Absolutely necessary — otherwise many apps will render badly or miss Unicode/emoji.  
+- **Laptop users**: Strongly recommended to install `tlp`, `upower`, `acpid`, and `power-profiles-daemon`.  
+
+---
+
+# 🖥️ Install Flow Summary
+
+1. **Resilience** (snapper, grub-btrfs, base-devel).  
+2. **Hyprland core**.  
+3. **Session & permissions** (sddm, polkit, hyprpolkitagent, uwsm).  
+4. **Keyring** (gnome-keyring, libsecret).  
+5. **System services** (audio, networking, Bluetooth, storage, power).  
+6. **UI layer** (swaync, waybar, hyprpaper, hypridle, hyprlock).  
+7. **Daily essentials** (fonts, terminal, file manager, launcher).  
+8. **Applications** (browser, office, media).  
+
