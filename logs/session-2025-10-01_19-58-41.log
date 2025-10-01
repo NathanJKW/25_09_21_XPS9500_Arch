@@ -1,0 +1,4 @@
+[2025-10-01 19:58:47] ==> [4] GPU setup (Intel primary + NVIDIA PRIME offload) (id=40) — Install NVIDIA stack, blacklist nouveau, early KMS, PRIME offload, power mgmt, and verification
+[2025-10-01 19:58:47]     path: /home/nathan/25_09_21_xps9500_arch/modules/40-gpu-setup.sh
+[2025-10-01 19:58:47]     log : /home/nathan/25_09_21_xps9500_arch/logs/module-04-40-gpu-setup-195841.log
+[2025-10-01 19:58:49] Module GPU setup (Intel primary + NVIDIA PRIME offload) FAILED with rc=1 (see /home/nathan/25_09_21_xps9500_arch/logs/module-04-40-gpu-setup-195841.log)

@@ -71,7 +71,7 @@ Thread(s) per core:                      2
 Core(s) per socket:                      6
 Socket(s):                               1
 Stepping:                                2
-CPU(s) scaling MHz:                      100%
+CPU(s) scaling MHz:                      94%
 CPU max MHz:                             2600.0000
 CPU min MHz:                             800.0000
 BogoMIPS:                                5199.98
@@ -105,15 +105,17 @@ Vulnerability Vmscape:                   Mitigation; IBPB before exit to userspa
 
 Memory:
                total        used        free      shared  buff/cache   available
-Mem:            31Gi       4.3Gi        22Gi       1.6Gi       5.8Gi        26Gi
+Mem:            31Gi       4.4Gi        20Gi       1.6Gi       7.6Gi        26Gi
 Swap:          4.0Gi          0B       4.0Gi
 
 Block Devices:
 NAME        FSTYPE FSVER LABEL UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
 zram0       swap   1     zram0 dbabe804-c3b4-4e5a-afd4-946212aa77b7                [SWAP]
 nvme0n1                                                                            
-|-nvme0n1p1 vfat   FAT32       A8CD-6652                             656.7M    36% /boot
-`-nvme0n1p2 btrfs              e8400dad-bddc-416a-841b-f29640b79938  946.1G     1% /var/log
+|-nvme0n1p1 vfat   FAT32       A8CD-6652                             656.1M    36% /boot
+`-nvme0n1p2 btrfs              e8400dad-bddc-416a-841b-f29640b79938  945.6G     1% /home/.snapshots
+                                                                                   /.snapshots
+                                                                                   /var/log
                                                                                    /var/cache/pacman/pkg
                                                                                    /home
                                                                                    /
@@ -152,8 +154,76 @@ PCI (controllers, GPUs, NICs, etc):
 6d:00.0 Non-Volatile memory controller [0108]: Micron Technology Inc 2300 NVMe SSD [Santana] [1344:5405]
 
 USB:
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 001 Device 002: ID 0bda:5411 Realtek Semiconductor Corp. RTS5411 Hub
+Bus 001 Device 003: ID 27c6:533c Shenzhen Goodix Technology Co.,Ltd. FingerPrint
+Bus 001 Device 004: ID 413c:301c Dell Computer Corp. Dell Universal Receiver
+Bus 001 Device 006: ID 343c:0000 xxxxxxxx USB Type-C Digital AV Adapter
+Bus 001 Device 007: ID 8087:0026 Intel Corp. AX201 Bluetooth
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 004 Device 002: ID 0bda:0411 Realtek Semiconductor Corp. Hub
 
 DMI / System Firmware:
+(dmidecode may require root; attempting)
+# dmidecode 3.6
+Getting SMBIOS data from sysfs.
+SMBIOS 3.2 present.
+
+Handle 0x0001, DMI type 0, 26 bytes
+BIOS Information
+	Vendor: Dell Inc.
+	Version: 1.39.0
+	Release Date: 08/05/2025
+	ROM Size: 32 MB
+	Characteristics:
+		PCI is supported
+		PNP is supported
+		BIOS is upgradeable
+		BIOS shadowing is allowed
+		Boot from CD is supported
+		Selectable boot is supported
+		EDD is supported
+		Print screen service is supported (int 5h)
+		8042 keyboard services are supported (int 9h)
+		Serial services are supported (int 14h)
+		Printer services are supported (int 17h)
+		ACPI is supported
+		USB legacy is supported
+		Smart battery is supported
+		BIOS boot specification is supported
+		Function key-initiated network boot is supported
+		Targeted content distribution is supported
+		UEFI is supported
+	BIOS Revision: 1.39
+
+Handle 0x0100, DMI type 1, 27 bytes
+System Information
+	Manufacturer: Dell Inc.
+	Product Name: XPS 15 9500
+	Version: Not Specified
+	Serial Number: 7V03273
+	UUID: 4c4c4544-0056-3010-8033-b7c04f323733
+	Wake-up Type: Power Switch
+	SKU Number: 097D
+	Family: XPS
+
+Handle 0x0C00, DMI type 12, 5 bytes
+System Configuration Options
+	Option 1: J6H1:1-X Boot with Default; J8H1:1-X BIOS RECOVERY
+
+Handle 0x0D00, DMI type 13, 22 bytes
+BIOS Language Information
+	Language Description Format: Abbreviated
+	Installable Languages: 1
+		enUS
+	Currently Installed Language: enUS
+
+Handle 0x2000, DMI type 32, 11 bytes
+System Boot Information
+	Status: No errors detected
+
 
 ================================================================================
 
@@ -162,6 +232,108 @@ DMI / System Firmware:
 <Devices Potentially Missing Drivers>
 
 
+T:  Bus=01 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=480  MxCh=16
+D:  Ver= 2.00 Cls=09(hub  ) Sub=00 Prot=01 MxPS=64 #Cfgs=  1
+P:  Vendor=1d6b ProdID=0002 Rev=06.16
+S:  Manufacturer=Linux 6.16.8-arch3-1 xhci-hcd
+S:  Product=xHCI Host Controller
+S:  SerialNumber=0000:00:14.0
+C:  #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=0mA
+I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+E:  Ad=81(I) Atr=03(Int.) MxPS=   4 Ivl=256ms
+---
+T:  Bus=01 Lev=01 Prnt=01 Port=09 Cnt=01 Dev#=  3 Spd=12   MxCh= 0
+D:  Ver= 2.00 Cls=ff(vend.) Sub=00 Prot=00 MxPS=64 #Cfgs=  1
+P:  Vendor=27c6 ProdID=533c Rev=01.00
+S:  Manufacturer=Goodix
+S:  Product=FingerPrint
+C:  #Ifs= 1 Cfg#= 1 Atr=a0 MxPwr=100mA
+I:  If#= 0 Alt= 0 #EPs= 2 Cls=ff(vend.) Sub=00 Prot=00 Driver=(none)
+E:  Ad=01(O) Atr=02(Bulk) MxPS=  64 Ivl=0ms
+E:  Ad=83(I) Atr=02(Bulk) MxPS=  64 Ivl=0ms
+---
+T:  Bus=01 Lev=01 Prnt=03 Port=13 Cnt=01 Dev#=  7 Spd=12   MxCh= 0
+D:  Ver= 2.01 Cls=e0(wlcon) Sub=01 Prot=01 MxPS=64 #Cfgs=  1
+P:  Vendor=8087 ProdID=0026 Rev=00.02
+C:  #Ifs= 2 Cfg#= 1 Atr=e0 MxPwr=100mA
+I:  If#= 0 Alt= 0 #EPs= 3 Cls=e0(wlcon) Sub=01 Prot=01 Driver=btusb
+E:  Ad=02(O) Atr=02(Bulk) MxPS=  64 Ivl=0ms
+E:  Ad=81(I) Atr=03(Int.) MxPS=  64 Ivl=1ms
+E:  Ad=82(I) Atr=02(Bulk) MxPS=  64 Ivl=0ms
+I:  If#= 1 Alt= 0 #EPs= 2 Cls=e0(wlcon) Sub=01 Prot=01 Driver=btusb
+E:  Ad=03(O) Atr=01(Isoc) MxPS=   0 Ivl=1ms
+E:  Ad=83(I) Atr=01(Isoc) MxPS=   0 Ivl=1ms
+---
+T:  Bus=01 Lev=01 Prnt=07 Port=03 Cnt=01 Dev#=  2 Spd=480  MxCh= 5
+D:  Ver= 2.10 Cls=09(hub  ) Sub=00 Prot=02 MxPS=64 #Cfgs=  1
+P:  Vendor=0bda ProdID=5411 Rev=01.01
+S:  Manufacturer=Generic
+S:  Product=USB2.1 Hub
+C:  #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=0mA
+I:  If#= 0 Alt= 1 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=02 Driver=hub
+E:  Ad=81(I) Atr=03(Int.) MxPS=   1 Ivl=256ms
+---
+T:  Bus=01 Lev=02 Prnt=02 Port=02 Cnt=01 Dev#=  4 Spd=12   MxCh= 0
+D:  Ver= 2.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS=32 #Cfgs=  1
+P:  Vendor=413c ProdID=301c Rev=02.44
+S:  Manufacturer=Dell Computer Corp
+S:  Product=Dell Universal Receiver
+C:  #Ifs= 3 Cfg#= 1 Atr=a0 MxPwr=100mA
+I:  If#= 0 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=01 Driver=usbhid
+E:  Ad=81(I) Atr=03(Int.) MxPS=   8 Ivl=4ms
+I:  If#= 1 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=02 Driver=usbhid
+E:  Ad=82(I) Atr=03(Int.) MxPS=   8 Ivl=4ms
+I:  If#= 2 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=00 Prot=00 Driver=usbhid
+E:  Ad=83(I) Atr=03(Int.) MxPS=  32 Ivl=1ms
+---
+T:  Bus=01 Lev=02 Prnt=04 Port=03 Cnt=01 Dev#=  6 Spd=1.5  MxCh= 0
+D:  Ver= 2.01 Cls=11(blbrd) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
+P:  Vendor=343c ProdID=0000 Rev=00.00
+S:  Manufacturer=xxxxxxxx
+S:  Product=USB Type-C Digital AV Adapter
+S:  SerialNumber=000000000000
+C:  #Ifs= 1 Cfg#= 1 Atr=c0 MxPwr=496mA
+I:  If#= 0 Alt= 0 #EPs= 0 Cls=11(blbrd) Sub=00 Prot=00 Driver=(none)
+---
+T:  Bus=02 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=10000 MxCh=10
+D:  Ver= 3.10 Cls=09(hub  ) Sub=00 Prot=03 MxPS= 9 #Cfgs=  1
+P:  Vendor=1d6b ProdID=0003 Rev=06.16
+S:  Manufacturer=Linux 6.16.8-arch3-1 xhci-hcd
+S:  Product=xHCI Host Controller
+S:  SerialNumber=0000:00:14.0
+C:  #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=0mA
+I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+E:  Ad=81(I) Atr=03(Int.) MxPS=   4 Ivl=256ms
+---
+T:  Bus=03 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=480  MxCh= 2
+D:  Ver= 2.00 Cls=09(hub  ) Sub=00 Prot=01 MxPS=64 #Cfgs=  1
+P:  Vendor=1d6b ProdID=0002 Rev=06.16
+S:  Manufacturer=Linux 6.16.8-arch3-1 xhci-hcd
+S:  Product=xHCI Host Controller
+S:  SerialNumber=0000:38:00.0
+C:  #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=0mA
+I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+E:  Ad=81(I) Atr=03(Int.) MxPS=   4 Ivl=256ms
+---
+T:  Bus=04 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=10000 MxCh= 2
+D:  Ver= 3.10 Cls=09(hub  ) Sub=00 Prot=03 MxPS= 9 #Cfgs=  1
+P:  Vendor=1d6b ProdID=0003 Rev=06.16
+S:  Manufacturer=Linux 6.16.8-arch3-1 xhci-hcd
+S:  Product=xHCI Host Controller
+S:  SerialNumber=0000:38:00.0
+C:  #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=0mA
+I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+E:  Ad=81(I) Atr=03(Int.) MxPS=   4 Ivl=256ms
+---
+T:  Bus=04 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=5000 MxCh= 4
+D:  Ver= 3.20 Cls=09(hub  ) Sub=00 Prot=03 MxPS= 9 #Cfgs=  1
+P:  Vendor=0bda ProdID=0411 Rev=01.01
+S:  Manufacturer=Generic
+S:  Product=USB3.2 Hub
+C:  #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=0mA
+I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
+E:  Ad=81(I) Atr=13(Int.) MxPS=   2 Ivl=16ms
+---
 
 ## Current Errors / Warnings
 
@@ -190,6 +362,7 @@ Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
 Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
 Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
 Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
+Oct 01 19:42:02 nebula grub-btrfsd[48612]: [!] inotifywait was not found, exiting. Is inotify-tools installed?
 
 journalctl -p warning -b (this boot):
 Sep 29 20:19:16 nebula kernel: x86/cpu: SGX disabled or unsupported by BIOS.
@@ -253,6 +426,13 @@ Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
 Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
 Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
 Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
+Oct 01 19:42:02 nebula grub-btrfsd[48612]: [!] inotifywait was not found, exiting. Is inotify-tools installed?
+Oct 01 19:42:02 nebula systemd[1]: grub-btrfsd.service: Failed with result 'exit-code'.
+Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86348: Could not fstatat ns/pid: Not a directory
+Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86348: Could not fstatat ns/pid: Not a directory
+Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86347: Could not fstatat ns/pid: Not a directory
+Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86347: Could not fstatat ns/pid: Not a directory
+Oct 01 19:50:30 nebula wireplumber[86347]: spa.bluez5: BlueZ system service is not available
 
 ================================================================================
 
@@ -543,7 +723,7 @@ main "$@"
 # Arch Wiki references (keep aligned in comments):
 # - Btrfs: Installation guide → Filesystems → Btrfs
 # - Snapper: Create a configuration / Integration with pacman / Timeline & cleanup
-# - grub-btrfs: path unit generates /boot/grub/grub-btrfs.cfg from Snapper snapshots
+# - grub-btrfs: daemon watches snapshots and generates /boot/grub/grub-btrfs.cfg
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
@@ -594,13 +774,35 @@ ensure_subvolume() {
 }
 
 ensure_fstab_entry() {
-  # per Arch Wiki: Btrfs — explicit mounts for subvolumes
-  local mnt="$1" subvol_name="${2:-${mnt##*/}}"
-  local uuid; uuid="$(findmnt -no UUID / || true)"
-  [[ -n "$uuid" ]] || fail "Could not resolve UUID for /"
+  # ensure_fstab_entry <mountpoint> [<subvol_leaf_name>]
+  # Example: ensure_fstab_entry "/.snapshots" ".snapshots"
+  local mnt="$1" leaf="${2:-${1##*/}}"
+
+  # Determine the parent mount for this mountpoint (root for /.snapshots, /home for /home/.snapshots)
+  local parent
+  case "$mnt" in
+    "/.snapshots")       parent="/" ;;
+    "/home/.snapshots")  parent="/home" ;;
+    *)                   parent="/" ;;
+  esac
+
+  # Resolve filesystem UUID and parent mount’s subvol path
+  local uuid opts parent_subvol subvol_path
+  uuid="$(findmnt -no UUID "$parent" || true)"
+  [[ -n "$uuid" ]] || fail "Could not resolve UUID for $parent"
+
+  opts="$(findmnt -no OPTIONS "$parent" || true)"
+  parent_subvol="$(sed -n 's/.*subvol=\([^,]*\).*/\1/p' <<<"$opts")"
+
+  if [[ -z "$parent_subvol" || "$parent_subvol" == "/" ]]; then
+    subvol_path="${leaf}"
+  else
+    subvol_path="${parent_subvol%/}/${leaf}"
+  fi
+
   if ! grep -qE "[[:space:]]${mnt}[[:space:]]" /etc/fstab; then
-    log "Appending fstab entry for ${mnt}"
-    printf 'UUID=%s  %s  btrfs  subvol=%s,%s  0 0\n' "$uuid" "$mnt" "$subvol_name" "$BTRFS_COMP_OPT" >> /etc/fstab
+    log "Appending fstab entry for ${mnt} (subvol=${subvol_path})"
+    printf 'UUID=%s  %s  btrfs  subvol=%s,%s  0 0\n' "$uuid" "$mnt" "$subvol_path" "$BTRFS_COMP_OPT" >> /etc/fstab
   fi
 }
 
@@ -638,7 +840,15 @@ verify_snapper_config() {
   ok "snapper config '$cfg' is readable"
 }
 
+# Manual generator fallback (first run before daemon notices inotify events)
+run_grub_btrfs_generator_if_available() {
+  if [[ -x /etc/grub.d/41_snapshots-btrfs ]]; then
+    /etc/grub.d/41_snapshots-btrfs || true
+  fi
+}
+
 verify_grub_btrfs_cfg_present() {
+  [[ -s /boot/grub/grub-btrfs.cfg ]] || run_grub_btrfs_generator_if_available
   [[ -s /boot/grub/grub-btrfs.cfg ]] || fail "/boot/grub/grub-btrfs.cfg missing or empty"
   ok "grub-btrfs configuration present"
 }
@@ -652,10 +862,16 @@ enable_quota_if_needed() {
   fi
 }
 
+enable_grub_btrfs_daemon() {
+  # Upstream daemon requires inotify-tools; harmless if already installed
+  pacman -S --needed inotify-tools
+  systemctl enable --now grub-btrfsd.service || true
+}
+
 force_grub_btrfs_refresh() {
-  # poke the generator
-  systemctl start grub-btrfsd.path || true
-  systemctl restart grub-btrfsd.service || true
+  # Make sure daemon is up, then run the generator once as a belt-and-braces refresh
+  enable_grub_btrfs_daemon
+  run_grub_btrfs_generator_if_available
 }
 
 verify_end_to_end_with_test_snapshot() {
@@ -730,16 +946,21 @@ main() {
   [[ -d /home ]] && enable_quota_if_needed "/home" || true
   ok "Btrfs quota/qgroups enabled where applicable"
 
-  # Timers + grub-btrfs watcher
+  # Timers
   systemctl enable --now snapper-timeline.timer
   systemctl enable --now snapper-cleanup.timer
-  systemctl enable --now grub-btrfsd.path
-  ok "snapper timers and grub-btrfs path enabled"
+  ok "snapper timers enabled"
 
-  # Rebuild GRUB (ensures include line exists)
+  # grub-btrfs daemon + initial generation
+  enable_grub_btrfs_daemon
+  ok "grub-btrfs daemon enabled"
+
+  # Rebuild GRUB (ensures include line exists) then verify snapshots cfg
   [[ -d /boot/grub ]] || fail "/boot/grub not found (is GRUB installed to this ESP?)"
   grub-mkconfig -o /boot/grub/grub.cfg
   ok "grub.cfg rebuilt"
+
+  force_grub_btrfs_refresh
   verify_grub_btrfs_cfg_present
 
   # Link repo configs and verify
@@ -764,13 +985,12 @@ main "$@"
 #!/usr/bin/env bash
 # meta: id=30 name="Base system (utils + yay + power + audio + bluetooth)" desc="CLI utilities, yay (AUR), power management (PPD/TLP), PipeWire/WirePlumber audio, and BlueZ" needs_root=false
 #
-# Arch Wiki references (keep these accurate):
-# - Installation guide → Post-installation (package management basics)
+# Arch Wiki references (keep these accurate in comments):
 # - Pacman: https://wiki.archlinux.org/title/Pacman
-# - Makepkg (build rules; never as root): https://wiki.archlinux.org/title/Makepkg
-# - AUR helpers (we still build yay with makepkg, as user): https://wiki.archlinux.org/title/AUR_helpers
+# - Makepkg (never as root): https://wiki.archlinux.org/title/Makepkg
+# - AUR helpers: https://wiki.archlinux.org/title/AUR_helpers
 # - Power management:
-#     * Power management: https://wiki.archlinux.org/title/Power_management
+#     * Power management overview: https://wiki.archlinux.org/title/Power_management
 #     * power-profiles-daemon: https://wiki.archlinux.org/title/Power_Profiles_Daemon
 #     * TLP: https://wiki.archlinux.org/title/TLP
 # - Audio:
@@ -783,8 +1003,8 @@ main "$@"
 # Style & conventions:
 # - Run as a regular user (needs_root=false). Use sudo for system changes.
 # - No --noconfirm by default; set ASSUME_YES=true for unattended runs.
-# - Small functions, explicit verification after each major step.
-# - Strict: any failure exits non-zero (no hints).
+# - Small functions; explicit verification after each major step.
+# - Strict: any failure exits non-zero.
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
@@ -792,23 +1012,21 @@ nt=$'\n\t'; IFS=$nt
 # ================================
 # Config (override via env)
 # ================================
-# Utility categories (DE/WM agnostic; core laptop tooling)
 UTILS_ENABLE_CORE="${UTILS_ENABLE_CORE:-true}"
 UTILS_ENABLE_NET_TOOLS="${UTILS_ENABLE_NET_TOOLS:-true}"
 UTILS_ENABLE_FS_TOOLS="${UTILS_ENABLE_FS_TOOLS:-true}"
 UTILS_ENABLE_SYS_TOOLS="${UTILS_ENABLE_SYS_TOOLS:-true}"
 UTILS_ENABLE_DOCS="${UTILS_ENABLE_DOCS:-true}"
 
-# Optional extras to install from AUR via yay (space-separated)
 AUR_PACKAGES="${AUR_PACKAGES:-}"             # e.g., 'bat-extras bottom-bin'
 
-# Power management backend for laptops (pick one; they conflict)
-PM_BACKEND="${PM_BACKEND:-ppd}"              # 'ppd' (power-profiles-daemon) or 'tlp'
-ENABLE_POWERTOP="${ENABLE_POWERTOP:-false}"  # optional, installs powertop
+PM_BACKEND="${PM_BACKEND:-ppd}"              # 'ppd' or 'tlp'
+ENABLE_POWERTOP="${ENABLE_POWERTOP:-false}"
 
-# Bluetooth behavior
-BT_AUTOENABLE="${BT_AUTOENABLE:-true}"       # set AutoEnable=true in /etc/bluetooth/main.conf
-BT_POWER_ON_NOW="${BT_POWER_ON_NOW:-true}"   # enforce controller powered on now
+BT_AUTOENABLE="${BT_AUTOENABLE:-true}"
+BT_POWER_ON_NOW="${BT_POWER_ON_NOW:-true}"
+
+ASSUME_YES="${ASSUME_YES:-false}"
 
 # ================================
 # Logging / helpers
@@ -817,20 +1035,33 @@ log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-pac() {
-  # Wrapper around pacman respecting ASSUME_YES; uses --needed (per best practice)
-  local extra=()
-  [[ "${ASSUME_YES:-false}" == "true" ]] && extra+=(--noconfirm)
-  sudo pacman -S --needed "${extra[@]}" "$@"
-}
-
 ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
 
 ensure_not_root() {
-  # per Arch Wiki: Makepkg → must NOT run as root
+  # per Arch Wiki: Makepkg must NOT run as root
   if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
-    fail "Run this module as a regular user (makepkg must not run as root)."
+    fail "Run this module as a regular user (it will sudo only for system changes)."
   fi
+}
+
+pac() {
+  # Wrapper around pacman respecting ASSUME_YES; always uses --needed
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -S "${extra[@]}" "$@"
+}
+
+pac_update() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Syu "${extra[@]}"
+}
+
+pac_remove() {
+  # pac_remove <pkgs...> (respects ASSUME_YES)
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Rns "${extra[@]}" "$@"
 }
 
 verify_pkgs_installed() {
@@ -870,14 +1101,14 @@ install_yay_if_needed() {
 
   local builddir
   builddir="$(mktemp -d -t aur-yay-XXXXXXXX)"
-  trap 'rm -rf -- "$builddir"' EXIT
 
   git clone https://aur.archlinux.org/yay.git "$builddir/yay" >/dev/null
   pushd "$builddir/yay" >/dev/null
   local mflags=()
-  [[ "${ASSUME_YES:-false}" == "true" ]] && mflags+=(--noconfirm)
+  [[ "$ASSUME_YES" == "true" ]] && mflags+=(--noconfirm)
   makepkg -si "${mflags[@]}"
   popd >/dev/null
+  rm -rf -- "$builddir"
 
   command -v yay >/dev/null 2>&1 || fail "yay not found after build"
   ok "yay installed"
@@ -917,17 +1148,20 @@ install_official_utils() {
   fi
 }
 
+# ================================
+# AUR optional installs
+# ================================
 install_aur_optional() {
   [[ -z "$AUR_PACKAGES" ]] && { ok "No AUR packages requested"; return 0; }
   ensure_cmd yay
   local yflags=(--needed)
-  [[ "${ASSUME_YES:-false}" == "true" ]] && yflags+=(--noconfirm)
+  [[ "$ASSUME_YES" == "true" ]] && yflags+=(--noconfirm)
   # shellcheck disable=SC2086
   yay -S ${yflags[*]} $AUR_PACKAGES
 
   local missing=()
   for p in $AUR_PACKAGES; do
-    pacman -Qi "$p" >/dev/null 2>&1 || yay -Q "$p" >/devnull 2>&1 || missing+=("$p")
+    pacman -Qi "$p" >/dev/null 2>&1 || yay -Q "$p" >/dev/null 2>&1 || missing+=("$p")
   done
   [[ "${#missing[@]}" -eq 0 ]] || fail "AUR packages not installed: ${missing[*]}"
   ok "AUR packages installed"
@@ -937,7 +1171,7 @@ install_aur_optional() {
 # Power management
 # ================================
 setup_power_profiles_daemon() {
-  # per Arch Wiki: Power Profiles Daemon — disable TLP to avoid conflicts
+  # per Arch Wiki: PPD — disable TLP to avoid conflicts
   pac power-profiles-daemon
   sudo systemctl disable --now tlp.service tlp-sleep.service 2>/dev/null || true
   sudo systemctl enable --now power-profiles-daemon.service
@@ -969,7 +1203,7 @@ configure_power_management() {
   case "$PM_BACKEND" in
     ppd) setup_power_profiles_daemon ;;
     tlp) setup_tlp ;;
-    *) fail "Unknown PM_BACKEND='$PM_BACKEND' (use 'ppd' or 'tlp')" ;;
+    *)   fail "Unknown PM_BACKEND='$PM_BACKEND' (use 'ppd' or 'tlp')" ;;
   esac
   ok "Power management configured (${PM_BACKEND})"
 }
@@ -978,7 +1212,17 @@ configure_power_management() {
 # Audio (PipeWire + WirePlumber, strict)
 # per Arch Wiki: PipeWire / WirePlumber / ALSA / RealtimeKit
 # ================================
+remove_conflicting_jack2_if_needed() {
+  # PipeWire's jack shim (pipewire-jack) conflicts with jack2 (virtual "jack").
+  if pacman -Qi jack2 >/dev/null 2>&1; then
+    log "Removing jack2 (conflicts with pipewire-jack)"
+    pac_remove jack2
+  fi
+}
+
 configure_audio() {
+  remove_conflicting_jack2_if_needed
+
   # Install PipeWire core, shims, session manager, ALSA tooling, firmware/UCM, RTKit
   pac pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber rtkit alsa-utils alsa-ucm-conf sof-firmware
   verify_pkgs_installed pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber rtkit alsa-utils alsa-ucm-conf sof-firmware
@@ -987,26 +1231,28 @@ configure_audio() {
   sudo systemctl enable --now rtkit-daemon.service
   systemctl is-active --quiet rtkit-daemon || fail "rtkit-daemon not active"
 
-  # Ensure user services are enabled and running (socket activation is typical, we enforce enable+now)
+  # Ensure user services are enabled and running
   systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service
 
-  # Wait a few seconds for the graph to settle
-  wait_for_condition 5 systemctl --user is-active pipewire || fail "pipewire (user) not active"
+  # Wait briefly for the graph to settle
+  wait_for_condition 5 systemctl --user is-active pipewire    || fail "pipewire (user) not active"
   wait_for_condition 5 systemctl --user is-active wireplumber || fail "wireplumber (user) not active"
 
-  # ALSA device presence
+  # ALSA devices present
   aplay -l >/dev/null 2>&1 || fail "ALSA: no playback devices (aplay -l failed)"
   arecord -l >/dev/null 2>&1 || fail "ALSA: no capture devices (arecord -l failed)"
 
-  # Pulse shim should be PipeWire's
+  # Pulse shim should be PipeWire's (accept versioned strings)
   command -v pactl >/dev/null 2>&1 || fail "pactl not available"
   local server
   server="$(pactl info 2>/dev/null | awk -F': ' '/Server Name/ {print $2}')"
-  [[ "$server" == "PulseAudio (on PipeWire)" ]] || fail "Pulse shim not active (got: '${server:-none}')"
+  if [[ "${server:-}" != PulseAudio\ \(on\ PipeWire* ]]; then
+    fail "Pulse shim not active (got: '${server:-none}')"
+  fi
 
   # Basic sink/source presence via wpctl (if present)
   if command -v wpctl >/dev/null 2>&1; then
-    wpctl status | grep -q 'Sinks:' || fail "PipeWire: no sinks detected"
+    wpctl status | grep -q 'Sinks:'   || fail "PipeWire: no sinks detected"
     wpctl status | grep -q 'Sources:' || fail "PipeWire: no sources detected"
   fi
 
@@ -1014,8 +1260,7 @@ configure_audio() {
 }
 
 # ================================
-# Bluetooth (BlueZ, strict pass/fail)
-# per Arch Wiki: Bluetooth — install bluez/bluez-utils, enable service, ensure controller present/powered
+# Bluetooth (BlueZ)
 # ================================
 bluetooth_requirements() {
   pac linux-firmware bluez bluez-utils util-linux
@@ -1052,7 +1297,6 @@ configure_bluetooth() {
   if [[ "$BT_POWER_ON_NOW" == "true" ]]; then
     if ! bluetoothctl show | grep -q 'Powered: yes'; then
       printf 'power on\nquit\n' | bluetoothctl >/dev/null 2>&1 || true
-      # Re-check after a short wait
       wait_for_condition 5 bash -c "bluetoothctl show | grep -q 'Powered: yes'" || fail "Bluetooth controller not powered"
     fi
   fi
@@ -1067,8 +1311,8 @@ main() {
   ensure_not_root
   ensure_cmd sudo
 
-  # Keep system fresh (user confirms unless ASSUME_YES=true)
-  sudo pacman -Syu
+  # Keep system fresh; honors ASSUME_YES
+  pac_update
   ok "System updated"
 
   install_yay_if_needed
@@ -1573,7 +1817,7 @@ nt=$'\n\t'; IFS=$nt
 # ================================
 # Config (override via env)
 # ================================
-ASSUME_YES="${ASSUME_YES:-false}"
+ASSUME_YES="${ASSUME_YES:-true}"
 
 # Repo root (auto-detect based on script location, like other modules)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -1595,7 +1839,7 @@ YAY_PKGS="${YAY_PKGS:-brave-bin}"
 #      SYMLINK_SPEC+=("files/hyprland/kitty/kitty.conf :: $HOME/.config/kitty/kitty.conf")
 #      SYMLINK_SPEC+=("files/hyprland/environment.d/20-cursor.conf :: $HOME/.config/environment.d/20-cursor.conf")
 declare -a SYMLINK_SPEC=(
-  SYMLINK_SPEC+=("files/kitty/kitty.conf :: $HOME/.config/kitty/kitty.conf")
+  "files/kitty/kitty.conf :: $HOME/.config/kitty/kitty.conf"
 )
 
 # Optional: set a default browser desktop ID after installs (leave empty to skip)

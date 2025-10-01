@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # meta: id=30 name="Base system (utils + yay + power + audio + bluetooth)" desc="CLI utilities, yay (AUR), power management (PPD/TLP), PipeWire/WirePlumber audio, and BlueZ" needs_root=false
 #
-# Arch Wiki references (keep these accurate):
-# - Installation guide → Post-installation (package management basics)
+# Arch Wiki references (keep these accurate in comments):
 # - Pacman: https://wiki.archlinux.org/title/Pacman
-# - Makepkg (build rules; never as root): https://wiki.archlinux.org/title/Makepkg
-# - AUR helpers (we still build yay with makepkg, as user): https://wiki.archlinux.org/title/AUR_helpers
+# - Makepkg (never as root): https://wiki.archlinux.org/title/Makepkg
+# - AUR helpers: https://wiki.archlinux.org/title/AUR_helpers
 # - Power management:
-#     * Power management: https://wiki.archlinux.org/title/Power_management
+#     * Power management overview: https://wiki.archlinux.org/title/Power_management
 #     * power-profiles-daemon: https://wiki.archlinux.org/title/Power_Profiles_Daemon
 #     * TLP: https://wiki.archlinux.org/title/TLP
 # - Audio:
@@ -20,8 +19,8 @@
 # Style & conventions:
 # - Run as a regular user (needs_root=false). Use sudo for system changes.
 # - No --noconfirm by default; set ASSUME_YES=true for unattended runs.
-# - Small functions, explicit verification after each major step.
-# - Strict: any failure exits non-zero (no hints).
+# - Small functions; explicit verification after each major step.
+# - Strict: any failure exits non-zero.
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
@@ -29,23 +28,21 @@ nt=$'\n\t'; IFS=$nt
 # ================================
 # Config (override via env)
 # ================================
-# Utility categories (DE/WM agnostic; core laptop tooling)
 UTILS_ENABLE_CORE="${UTILS_ENABLE_CORE:-true}"
 UTILS_ENABLE_NET_TOOLS="${UTILS_ENABLE_NET_TOOLS:-true}"
 UTILS_ENABLE_FS_TOOLS="${UTILS_ENABLE_FS_TOOLS:-true}"
 UTILS_ENABLE_SYS_TOOLS="${UTILS_ENABLE_SYS_TOOLS:-true}"
 UTILS_ENABLE_DOCS="${UTILS_ENABLE_DOCS:-true}"
 
-# Optional extras to install from AUR via yay (space-separated)
 AUR_PACKAGES="${AUR_PACKAGES:-}"             # e.g., 'bat-extras bottom-bin'
 
-# Power management backend for laptops (pick one; they conflict)
-PM_BACKEND="${PM_BACKEND:-ppd}"              # 'ppd' (power-profiles-daemon) or 'tlp'
-ENABLE_POWERTOP="${ENABLE_POWERTOP:-false}"  # optional, installs powertop
+PM_BACKEND="${PM_BACKEND:-ppd}"              # 'ppd' or 'tlp'
+ENABLE_POWERTOP="${ENABLE_POWERTOP:-false}"
 
-# Bluetooth behavior
-BT_AUTOENABLE="${BT_AUTOENABLE:-true}"       # set AutoEnable=true in /etc/bluetooth/main.conf
-BT_POWER_ON_NOW="${BT_POWER_ON_NOW:-true}"   # enforce controller powered on now
+BT_AUTOENABLE="${BT_AUTOENABLE:-true}"
+BT_POWER_ON_NOW="${BT_POWER_ON_NOW:-true}"
+
+ASSUME_YES="${ASSUME_YES:-false}"
 
 # ================================
 # Logging / helpers
@@ -54,20 +51,33 @@ log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-pac() {
-  # Wrapper around pacman respecting ASSUME_YES; uses --needed (per best practice)
-  local extra=()
-  [[ "${ASSUME_YES:-false}" == "true" ]] && extra+=(--noconfirm)
-  sudo pacman -S --needed "${extra[@]}" "$@"
-}
-
 ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
 
 ensure_not_root() {
-  # per Arch Wiki: Makepkg → must NOT run as root
+  # per Arch Wiki: Makepkg must NOT run as root
   if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
-    fail "Run this module as a regular user (makepkg must not run as root)."
+    fail "Run this module as a regular user (it will sudo only for system changes)."
   fi
+}
+
+pac() {
+  # Wrapper around pacman respecting ASSUME_YES; always uses --needed
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -S "${extra[@]}" "$@"
+}
+
+pac_update() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Syu "${extra[@]}"
+}
+
+pac_remove() {
+  # pac_remove <pkgs...> (respects ASSUME_YES)
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Rns "${extra[@]}" "$@"
 }
 
 verify_pkgs_installed() {
@@ -107,14 +117,14 @@ install_yay_if_needed() {
 
   local builddir
   builddir="$(mktemp -d -t aur-yay-XXXXXXXX)"
-  trap 'rm -rf -- "$builddir"' EXIT
 
   git clone https://aur.archlinux.org/yay.git "$builddir/yay" >/dev/null
   pushd "$builddir/yay" >/dev/null
   local mflags=()
-  [[ "${ASSUME_YES:-false}" == "true" ]] && mflags+=(--noconfirm)
+  [[ "$ASSUME_YES" == "true" ]] && mflags+=(--noconfirm)
   makepkg -si "${mflags[@]}"
   popd >/dev/null
+  rm -rf -- "$builddir"
 
   command -v yay >/dev/null 2>&1 || fail "yay not found after build"
   ok "yay installed"
@@ -154,17 +164,20 @@ install_official_utils() {
   fi
 }
 
+# ================================
+# AUR optional installs
+# ================================
 install_aur_optional() {
   [[ -z "$AUR_PACKAGES" ]] && { ok "No AUR packages requested"; return 0; }
   ensure_cmd yay
   local yflags=(--needed)
-  [[ "${ASSUME_YES:-false}" == "true" ]] && yflags+=(--noconfirm)
+  [[ "$ASSUME_YES" == "true" ]] && yflags+=(--noconfirm)
   # shellcheck disable=SC2086
   yay -S ${yflags[*]} $AUR_PACKAGES
 
   local missing=()
   for p in $AUR_PACKAGES; do
-    pacman -Qi "$p" >/dev/null 2>&1 || yay -Q "$p" >/devnull 2>&1 || missing+=("$p")
+    pacman -Qi "$p" >/dev/null 2>&1 || yay -Q "$p" >/dev/null 2>&1 || missing+=("$p")
   done
   [[ "${#missing[@]}" -eq 0 ]] || fail "AUR packages not installed: ${missing[*]}"
   ok "AUR packages installed"
@@ -174,7 +187,7 @@ install_aur_optional() {
 # Power management
 # ================================
 setup_power_profiles_daemon() {
-  # per Arch Wiki: Power Profiles Daemon — disable TLP to avoid conflicts
+  # per Arch Wiki: PPD — disable TLP to avoid conflicts
   pac power-profiles-daemon
   sudo systemctl disable --now tlp.service tlp-sleep.service 2>/dev/null || true
   sudo systemctl enable --now power-profiles-daemon.service
@@ -206,7 +219,7 @@ configure_power_management() {
   case "$PM_BACKEND" in
     ppd) setup_power_profiles_daemon ;;
     tlp) setup_tlp ;;
-    *) fail "Unknown PM_BACKEND='$PM_BACKEND' (use 'ppd' or 'tlp')" ;;
+    *)   fail "Unknown PM_BACKEND='$PM_BACKEND' (use 'ppd' or 'tlp')" ;;
   esac
   ok "Power management configured (${PM_BACKEND})"
 }
@@ -215,7 +228,17 @@ configure_power_management() {
 # Audio (PipeWire + WirePlumber, strict)
 # per Arch Wiki: PipeWire / WirePlumber / ALSA / RealtimeKit
 # ================================
+remove_conflicting_jack2_if_needed() {
+  # PipeWire's jack shim (pipewire-jack) conflicts with jack2 (virtual "jack").
+  if pacman -Qi jack2 >/dev/null 2>&1; then
+    log "Removing jack2 (conflicts with pipewire-jack)"
+    pac_remove jack2
+  fi
+}
+
 configure_audio() {
+  remove_conflicting_jack2_if_needed
+
   # Install PipeWire core, shims, session manager, ALSA tooling, firmware/UCM, RTKit
   pac pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber rtkit alsa-utils alsa-ucm-conf sof-firmware
   verify_pkgs_installed pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber rtkit alsa-utils alsa-ucm-conf sof-firmware
@@ -224,26 +247,28 @@ configure_audio() {
   sudo systemctl enable --now rtkit-daemon.service
   systemctl is-active --quiet rtkit-daemon || fail "rtkit-daemon not active"
 
-  # Ensure user services are enabled and running (socket activation is typical, we enforce enable+now)
+  # Ensure user services are enabled and running
   systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service
 
-  # Wait a few seconds for the graph to settle
-  wait_for_condition 5 systemctl --user is-active pipewire || fail "pipewire (user) not active"
+  # Wait briefly for the graph to settle
+  wait_for_condition 5 systemctl --user is-active pipewire    || fail "pipewire (user) not active"
   wait_for_condition 5 systemctl --user is-active wireplumber || fail "wireplumber (user) not active"
 
-  # ALSA device presence
+  # ALSA devices present
   aplay -l >/dev/null 2>&1 || fail "ALSA: no playback devices (aplay -l failed)"
   arecord -l >/dev/null 2>&1 || fail "ALSA: no capture devices (arecord -l failed)"
 
-  # Pulse shim should be PipeWire's
+  # Pulse shim should be PipeWire's (accept versioned strings)
   command -v pactl >/dev/null 2>&1 || fail "pactl not available"
   local server
   server="$(pactl info 2>/dev/null | awk -F': ' '/Server Name/ {print $2}')"
-  [[ "$server" == "PulseAudio (on PipeWire)" ]] || fail "Pulse shim not active (got: '${server:-none}')"
+  if [[ "${server:-}" != PulseAudio\ \(on\ PipeWire* ]]; then
+    fail "Pulse shim not active (got: '${server:-none}')"
+  fi
 
   # Basic sink/source presence via wpctl (if present)
   if command -v wpctl >/dev/null 2>&1; then
-    wpctl status | grep -q 'Sinks:' || fail "PipeWire: no sinks detected"
+    wpctl status | grep -q 'Sinks:'   || fail "PipeWire: no sinks detected"
     wpctl status | grep -q 'Sources:' || fail "PipeWire: no sources detected"
   fi
 
@@ -251,8 +276,7 @@ configure_audio() {
 }
 
 # ================================
-# Bluetooth (BlueZ, strict pass/fail)
-# per Arch Wiki: Bluetooth — install bluez/bluez-utils, enable service, ensure controller present/powered
+# Bluetooth (BlueZ)
 # ================================
 bluetooth_requirements() {
   pac linux-firmware bluez bluez-utils util-linux
@@ -289,7 +313,6 @@ configure_bluetooth() {
   if [[ "$BT_POWER_ON_NOW" == "true" ]]; then
     if ! bluetoothctl show | grep -q 'Powered: yes'; then
       printf 'power on\nquit\n' | bluetoothctl >/dev/null 2>&1 || true
-      # Re-check after a short wait
       wait_for_condition 5 bash -c "bluetoothctl show | grep -q 'Powered: yes'" || fail "Bluetooth controller not powered"
     fi
   fi
@@ -304,8 +327,8 @@ main() {
   ensure_not_root
   ensure_cmd sudo
 
-  # Keep system fresh (user confirms unless ASSUME_YES=true)
-  sudo pacman -Syu
+  # Keep system fresh; honors ASSUME_YES
+  pac_update
   ok "System updated"
 
   install_yay_if_needed
