@@ -124,7 +124,7 @@ update_system() {
 # ============================
 install_wayland_stack() {
   # Replace 'clipman' with 'cliphist' + 'wl-clipboard' per Wayland best practice.
-  pac hyprland waybar wofi mako wl-clipboard cliphist grim slurp swappy swaybg foot brightnessctl \
+  pac hyprland waybar wofi mako wl-clipboard cliphist grim slurp swappy swaybg foot brightnessctl ttf-jetbrains-mono \
       xdg-desktop-portal xdg-desktop-portal-hyprland xdg-utils libinput qt6-wayland
 
   # Fonts (& symbols) from official repos only
@@ -151,7 +151,7 @@ configure_portals() {
   pac xdg-desktop-portal xdg-desktop-portal-hyprland
 
   # Basic runtime verification (the backend binary presence)
-  [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || true
+  [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || log "Note: portal backend binary not found at expected path; it will be socket-activated in-session"
   ok "xdg-desktop-portal configured for Hyprland"
 }
 

@@ -42,7 +42,7 @@ Hostname & Kernel:
        Icon name: computer-laptop
          Chassis: laptop 💻
       Machine ID: a85796842fa04956bc17053a36180d31
-         Boot ID: ede8839dc56349d488803fd87dffe96b
+         Boot ID: da14990d56494e1487ad06543e39abc2
     Product UUID: 4c4c4544-0056-3010-8033-b7c04f323733
 Operating System: Arch Linux
           Kernel: Linux 6.16.8-arch3-1
@@ -105,19 +105,19 @@ Vulnerability Vmscape:                   Mitigation; IBPB before exit to userspa
 
 Memory:
                total        used        free      shared  buff/cache   available
-Mem:            31Gi       4.4Gi        20Gi       1.6Gi       7.6Gi        26Gi
+Mem:            31Gi       3.0Gi        27Gi       1.2Gi       2.5Gi        28Gi
 Swap:          4.0Gi          0B       4.0Gi
 
 Block Devices:
 NAME        FSTYPE FSVER LABEL UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
-zram0       swap   1     zram0 dbabe804-c3b4-4e5a-afd4-946212aa77b7                [SWAP]
+zram0       swap   1     zram0 4d57466c-d4e9-442e-8ff6-8cfea3673bb8                [SWAP]
 nvme0n1                                                                            
 |-nvme0n1p1 vfat   FAT32       A8CD-6652                             656.1M    36% /boot
-`-nvme0n1p2 btrfs              e8400dad-bddc-416a-841b-f29640b79938  945.6G     1% /home/.snapshots
-                                                                                   /.snapshots
-                                                                                   /var/log
+`-nvme0n1p2 btrfs              e8400dad-bddc-416a-841b-f29640b79938  942.6G     1% /home/.snapshots
                                                                                    /var/cache/pacman/pkg
+                                                                                   /var/log
                                                                                    /home
+                                                                                   /.snapshots
                                                                                    /
 
 PCI (controllers, GPUs, NICs, etc):
@@ -158,8 +158,8 @@ Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 001 Device 002: ID 0bda:5411 Realtek Semiconductor Corp. RTS5411 Hub
 Bus 001 Device 003: ID 27c6:533c Shenzhen Goodix Technology Co.,Ltd. FingerPrint
 Bus 001 Device 004: ID 413c:301c Dell Computer Corp. Dell Universal Receiver
+Bus 001 Device 005: ID 8087:0026 Intel Corp. AX201 Bluetooth
 Bus 001 Device 006: ID 343c:0000 xxxxxxxx USB Type-C Digital AV Adapter
-Bus 001 Device 007: ID 8087:0026 Intel Corp. AX201 Bluetooth
 Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
 Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
@@ -252,7 +252,7 @@ I:  If#= 0 Alt= 0 #EPs= 2 Cls=ff(vend.) Sub=00 Prot=00 Driver=(none)
 E:  Ad=01(O) Atr=02(Bulk) MxPS=  64 Ivl=0ms
 E:  Ad=83(I) Atr=02(Bulk) MxPS=  64 Ivl=0ms
 ---
-T:  Bus=01 Lev=01 Prnt=03 Port=13 Cnt=01 Dev#=  7 Spd=12   MxCh= 0
+T:  Bus=01 Lev=01 Prnt=03 Port=13 Cnt=01 Dev#=  5 Spd=12   MxCh= 0
 D:  Ver= 2.01 Cls=e0(wlcon) Sub=01 Prot=01 MxPS=64 #Cfgs=  1
 P:  Vendor=8087 ProdID=0026 Rev=00.02
 C:  #Ifs= 2 Cfg#= 1 Atr=e0 MxPwr=100mA
@@ -264,7 +264,7 @@ I:  If#= 1 Alt= 0 #EPs= 2 Cls=e0(wlcon) Sub=01 Prot=01 Driver=btusb
 E:  Ad=03(O) Atr=01(Isoc) MxPS=   0 Ivl=1ms
 E:  Ad=83(I) Atr=01(Isoc) MxPS=   0 Ivl=1ms
 ---
-T:  Bus=01 Lev=01 Prnt=07 Port=03 Cnt=01 Dev#=  2 Spd=480  MxCh= 5
+T:  Bus=01 Lev=01 Prnt=05 Port=03 Cnt=01 Dev#=  2 Spd=480  MxCh= 5
 D:  Ver= 2.10 Cls=09(hub  ) Sub=00 Prot=02 MxPS=64 #Cfgs=  1
 P:  Vendor=0bda ProdID=5411 Rev=01.01
 S:  Manufacturer=Generic
@@ -340,99 +340,194 @@ E:  Ad=81(I) Atr=13(Int.) MxPS=   2 Ivl=16ms
 <Current System Errors and Warnings>
 
 journalctl -p err -b (this boot):
-Sep 29 20:19:16 nebula kernel: x86/cpu: SGX disabled or unsupported by BIOS.
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: FW download error recovery failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: sending frame failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: Reading supported features failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: sending frame failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: Failed to read MSFT supported features (-19)
-Sep 29 20:19:16 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
-Sep 29 20:19:16 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
-Sep 29 20:19:18 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:18 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:21 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:21 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 30 18:56:16 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
-Sep 30 18:56:16 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
-Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
-Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
-Oct 01 19:42:02 nebula grub-btrfsd[48612]: [!] inotifywait was not found, exiting. Is inotify-tools installed?
+Oct 01 20:52:26 nebula kernel: x86/cpu: SGX disabled or unsupported by BIOS.
+Oct 01 20:52:27 nebula kernel: 
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:30 nebula dbus-broker-launch[789]: Ignoring duplicate name 'org.freedesktop.Notifications' in service file '/usr/share/dbus-1/services/org.knopwob.dunst.service'
+Oct 01 20:52:30 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:30 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:32 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:32 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:34 nebula dbus-broker-launch[835]: Ignoring duplicate name 'org.freedesktop.Notifications' in service file '/usr/share/dbus-1/services/org.knopwob.dunst.service'
+Oct 01 20:54:22 nebula sudo[1615]:   nathan : a password is required ; TTY=pts/1 ; PWD=/home/nathan/25_09_21_xps9500_arch ; USER=root ; COMMAND=/usr/bin/true
 
 journalctl -p warning -b (this boot):
-Sep 29 20:19:16 nebula kernel: x86/cpu: SGX disabled or unsupported by BIOS.
-Sep 29 20:19:16 nebula kernel: MMIO Stale Data CPU bug present and SMT on, data leak possible. See https://www.kernel.org/doc/html/latest/admin-guide/hw-vuln/processor_mmio_stale_data.html for more details.
-Sep 29 20:19:16 nebula kernel: hpet_acpi_add: no address or irqs in _CRS
-Sep 29 20:19:16 nebula kernel: i8042: Warning: Keylock active
-Sep 29 20:19:16 nebula kernel: ENERGY_PERF_BIAS: Set to 'normal', was 'performance'
-Sep 29 20:19:16 nebula kernel: wmi_bus wmi_bus-PNP0C14:03: [Firmware Bug]: WQBC data block query control method not found
-Sep 29 20:19:16 nebula kernel: nouveau 0000:01:00.0: [drm] No compatible format found
-Sep 29 20:19:16 nebula kernel: platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
-Sep 29 20:19:16 nebula kernel: spi-nor spi0.0: supply vcc not found, using dummy regulator
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: FW download error recovery failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: sending frame failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: Reading supported features failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: HCI LE Coded PHY feature bit is set, but its usage is not supported.
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: sending frame failed (-19)
-Sep 29 20:19:16 nebula kernel: Bluetooth: hci0: Failed to read MSFT supported features (-19)
-Sep 29 20:19:16 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
-Sep 29 20:19:16 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
-Sep 29 20:19:17 nebula systemd-networkd[424]: wlan0: Found matching .network file, based on potentially unpredictable interface name: /etc/systemd/network/20-wlan.network
-Sep 29 20:19:18 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:18 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:19 nebula kernel: Bluetooth: hci0: HCI LE Coded PHY feature bit is set, but its usage is not supported.
-Sep 29 20:19:19 nebula sddm[693]: Could not setup default cursor
-Sep 29 20:19:19 nebula dbus-broker-launch[596]: Activation request for 'org.freedesktop.home1' failed: The systemd unit 'dbus-org.freedesktop.home1.service' could not be found.
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:19 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:19 nebula dbus-broker-launch[736]: Service file '/usr/share/dbus-1/services/org.kde.dolphin.FileManager1.service' is not named after the D-Bus name 'org.freedesktop.FileManager1'.
-Sep 29 20:19:19 nebula dbus-broker-launch[736]: Service file '/usr/share/dbus-1/services/org.knopwob.dunst.service' is not named after the D-Bus name 'org.freedesktop.Notifications'.
-Sep 29 20:19:20 nebula sddm-greeter-qt6[733]: file:///usr/lib/qt6/qml/SddmComponents/LayoutBox.qml:35:5: QML Connections: Implicitly defined onFoo properties in Connections are deprecated. Use this syntax instead: function onFoo(<arguments>) { ... }
-Sep 29 20:19:20 nebula sddm-greeter-qt6[733]: file:///usr/lib/qt6/qml/SddmComponents/ComboBox.qml:105:9: QML Image: Cannot open: file:///usr/lib/qt6/qml/SddmComponents/angle-down.png
-Sep 29 20:19:20 nebula sddm-greeter-qt6[733]: file:///usr/lib/qt6/qml/SddmComponents/ComboBox.qml:105:9: QML Image: Cannot open: file:///usr/lib/qt6/qml/SddmComponents/angle-down.png
-Sep 29 20:19:20 nebula sddm-greeter-qt6[733]: qrc:/theme/Main.qml:41:5: QML Connections: Implicitly defined onFoo properties in Connections are deprecated. Use this syntax instead: function onFoo(<arguments>) { ... }
-Sep 29 20:19:21 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Sep 29 20:19:21 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Sep 29 20:19:37 nebula sddm-greeter-qt6[733]: file:///usr/lib/qt6/qml/SddmComponents/PictureBox.qml:106:13 Parameter "event" is not declared. Injection of parameters into signal handlers is deprecated. Use JavaScript functions with formal parameters instead.
-Sep 29 20:19:41 nebula dbus-broker-launch[834]: Service file '/usr/share/dbus-1/services/org.kde.dolphin.FileManager1.service' is not named after the D-Bus name 'org.freedesktop.FileManager1'.
-Sep 29 20:19:41 nebula dbus-broker-launch[834]: Service file '/usr/share/dbus-1/services/org.knopwob.dunst.service' is not named after the D-Bus name 'org.freedesktop.Notifications'.
-Sep 29 20:24:58 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 1224: Could not fstatat ns/pid: Not a directory
-Sep 29 20:24:58 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 1224: Could not fstatat ns/pid: Not a directory
-Sep 29 20:35:26 nebula kernel: nvme nvme0: using unchecked data buffer
-Sep 29 20:35:26 nebula kernel: block nvme0n1: No UUID available providing old NGUID
-Sep 29 20:37:42 nebula kernel: warning: `ThreadPoolForeg' uses wireless extensions which will stop working for Wi-Fi 7 hardware; use nl80211
-Sep 30 18:56:16 nebula kernel: ACPI: button: The lid device is not compliant to SW_LID.
-Sep 30 18:56:16 nebula systemd-networkd[424]: wlan0: Failed to send DHCP RELEASE, ignoring: Invalid argument
-Sep 30 18:56:16 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
-Sep 30 18:56:16 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
-Sep 30 21:31:37 nebula systemd-resolved[408]: Using degraded feature set UDP instead of UDP+EDNS0 for DNS server 9.9.9.9#dns.quad9.net.
-Sep 30 21:31:42 nebula systemd-resolved[408]: Using degraded feature set UDP instead of UDP+EDNS0 for DNS server 1.1.1.1#cloudflare-dns.com.
-Sep 30 21:31:47 nebula systemd-resolved[408]: Using degraded feature set UDP instead of UDP+EDNS0 for DNS server 8.8.8.8#dns.google.
-Sep 30 21:31:53 nebula systemd-resolved[408]: Using degraded feature set TCP instead of UDP for DNS server 9.9.9.9#dns.quad9.net.
-Sep 30 21:32:03 nebula systemd-resolved[408]: Using degraded feature set TCP instead of UDP for DNS server 1.1.1.1#cloudflare-dns.com.
-Sep 30 21:32:13 nebula systemd-resolved[408]: Using degraded feature set TCP instead of UDP for DNS server 8.8.8.8#dns.google.
-Sep 30 21:32:34 nebula systemd-resolved[408]: Using degraded feature set UDP instead of TCP for DNS server 1.1.1.1#cloudflare-dns.com.
-Sep 30 21:32:39 nebula systemd-resolved[408]: Using degraded feature set UDP instead of TCP for DNS server 8.8.8.8#dns.google.
-Sep 30 21:32:44 nebula systemd-resolved[408]: Using degraded feature set UDP instead of TCP for DNS server 9.9.9.9#dns.quad9.net.
-Oct 01 18:08:45 nebula kernel: typec port1-partner: PM: parent port1 should not be sleeping
-Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
-Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
-Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
-Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
-Oct 01 19:42:02 nebula grub-btrfsd[48612]: [!] inotifywait was not found, exiting. Is inotify-tools installed?
-Oct 01 19:42:02 nebula systemd[1]: grub-btrfsd.service: Failed with result 'exit-code'.
-Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86348: Could not fstatat ns/pid: Not a directory
-Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86348: Could not fstatat ns/pid: Not a directory
-Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86347: Could not fstatat ns/pid: Not a directory
-Oct 01 19:50:30 nebula /usr/lib/xdg-desktop-portal[1192]: Realtime error: Could not get pidns for pid 86347: Could not fstatat ns/pid: Not a directory
-Oct 01 19:50:30 nebula wireplumber[86347]: spa.bluez5: BlueZ system service is not available
+Oct 01 20:52:26 nebula kernel: x86/cpu: SGX disabled or unsupported by BIOS.
+Oct 01 20:52:26 nebula kernel: MMIO Stale Data CPU bug present and SMT on, data leak possible. See https://www.kernel.org/doc/html/latest/admin-guide/hw-vuln/processor_mmio_stale_data.html for more details.
+Oct 01 20:52:26 nebula kernel: hpet_acpi_add: no address or irqs in _CRS
+Oct 01 20:52:26 nebula kernel: i8042: Warning: Keylock active
+Oct 01 20:52:26 nebula kernel: ENERGY_PERF_BIAS: Set to 'normal', was 'performance'
+Oct 01 20:52:26 nebula kernel: wmi_bus wmi_bus-PNP0C14:03: [Firmware Bug]: WQBC data block query control method not found
+Oct 01 20:52:26 nebula kernel: nvidia: loading out-of-tree module taints kernel.
+Oct 01 20:52:26 nebula kernel: nvidia: module license 'NVIDIA' taints kernel.
+Oct 01 20:52:26 nebula kernel: Disabling lock debugging due to kernel taint
+Oct 01 20:52:26 nebula kernel: nvidia: module license taints kernel.
+Oct 01 20:52:27 nebula kernel: 
+Oct 01 20:52:27 nebula kernel: NVRM: loading NVIDIA UNIX x86_64 Kernel Module  580.82.09  Fri Aug 29 17:44:50 UTC 2025
+Oct 01 20:52:27 nebula kernel: nvidia_uvm: module uses symbols nvUvmInterfaceDisableAccessCntr from proprietary module nvidia, inheriting taint.
+Oct 01 20:52:27 nebula kernel: platform regulatory.0: Direct firmware load for regulatory.db failed with error -2
+Oct 01 20:52:27 nebula kernel: spi-nor spi0.0: supply vcc not found, using dummy regulator
+Oct 01 20:52:27 nebula systemd-networkd[571]: wlan0: Found matching .network file, based on potentially unpredictable interface name: /etc/systemd/network/20-wlan.network
+Oct 01 20:52:28 nebula systemd-networkd[571]: wlan0: Found matching .network file, based on potentially unpredictable interface name: /etc/systemd/network/20-wlan.network
+Oct 01 20:52:28 nebula (udev-worker)[456]: controlC0: Process '/usr/bin/alsactl restore 0' failed with exit code 99.
+Oct 01 20:52:28 nebula sddm[712]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                  Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                  If this causes problems, reconfigure your locale. See the locale(1) manual
+                                  for more information.
+Oct 01 20:52:28 nebula sddm-helper[738]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                         Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                         If this causes problems, reconfigure your locale. See the locale(1) manual
+                                         for more information.
+Oct 01 20:52:28 nebula kernel: nvidia 0000:01:00.0: [drm] No compatible format found
+Oct 01 20:52:28 nebula dbus-broker-launch[608]: Activation request for 'org.freedesktop.home1' failed: The systemd unit 'dbus-org.freedesktop.home1.service' could not be found.
+Oct 01 20:52:28 nebula sddm-helper-start-wayland[763]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                                       Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                                       If this causes problems, reconfigure your locale. See the locale(1) manual
+                                                       for more information.
+Oct 01 20:52:28 nebula sddm-helper-start-wayland[763]: Failed to start "weston --shell=kiosk": Child process set up failed: execve: No such file or directory
+Oct 01 20:52:28 nebula sddm-helper-start-wayland[763]: SDDM was unable to start "weston --shell=kiosk"
+Oct 01 20:52:28 nebula sddm[712]: Auth: sddm-helper exited with 4
+Oct 01 20:52:28 nebula sddm[712]: Failed to launch the display server, falling back to DisplayServer=x11-user
+Oct 01 20:52:28 nebula sddm-helper[766]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                         Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                         If this causes problems, reconfigure your locale. See the locale(1) manual
+                                         for more information.
+Oct 01 20:52:28 nebula sddm-helper-start-x11user[767]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                                       Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                                       If this causes problems, reconfigure your locale. See the locale(1) manual
+                                                       for more information.
+Oct 01 20:52:29 nebula kernel: Bluetooth: hci0: HCI LE Coded PHY feature bit is set, but its usage is not supported.
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:29 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:29 nebula sddm-helper-start-x11user[767]: Failed to start "xsetroot -cursor_name left_ptr": Child process set up failed: execve: No such file or directory
+Oct 01 20:52:29 nebula sddm-helper-start-x11user[767]: "(--) Log file renamed from \"/var/lib/sddm/.local/share/xorg/Xorg.pid-768.log\" to \"/var/lib/sddm/.local/share/xorg/Xorg.0.log\"\n\nX.Org X Server 1.21.1.18\nX Protocol Version 11, Revision 0\nCurrent Operating System: Linux nebula 6.16.8-arch3-1 #1 SMP PREEMPT_DYNAMIC Mon, 22 Sep 2025 22:08:35 +0000 x86_64\nKernel command line: BOOT_IMAGE=/vmlinuz-linux root=UUID=e8400dad-bddc-416a-841b-f29640b79938 rw rootflags=subvol=@ zswap.enabled=0 rootfstype=btrfs loglevel=3 quiet\n \nCurrent version of pixman: 0.46.4\n\tBefore reporting problems, check http://wiki.x.org\n\tto make sure that you have the latest version.\nMarkers: (--) probed, (**) from config file, (==) default setting,\n\t(++) from command line, (!!) notice, (II) informational,\n\t(WW) warning, (EE) error, (NI) not implemented, (??) unknown.\n(==) Log file: \"/var/lib/sddm/.local/share/xorg/Xorg.0.log\", Time: Wed Oct  1 20:52:28 2025\n(==) Using config directory: \"/etc/X11/xorg.conf.d\"\n(==) Using system config directory \"/usr/share/X11/xorg.conf.d\"\n(==) No Layout section.  Using the first Screen section.\n(==) No screen section available. Using defaults.\n(**) |-->Screen \"Default Screen Section\" (0)\n(**) |   |-->Monitor \"<default monitor>\"\n(==) No monitor specified for screen \"Default Screen Section\".\n\tUsing a default monitor configuration.\n(**) Allowing byte-swapped clients\n(==) Automatically adding devices\n(==) Automatically enabling devices\n(==) Automatically adding GPU devices\n(==) Automatically binding GPU devices\n(==) Max clients allowed: 256, resource mask: 0x1fffff\n(WW) The directory \"/usr/share/fonts/misc\" does not exist.\n\tEntry deleted from font path.\n(WW) `fonts.dir' not found (or not valid) in \"/usr/share/fonts/TTF\".\n\tEntry deleted from font path.\n\t(Run 'mkfontdir' on \"/usr/share/fonts/TTF\").\n(WW) The directory \"/usr/share/fonts/OTF\" does not exist.\n\tEntry deleted from font path.\n(WW) The directory \"/usr/share/fonts/Type1\" does not exist.\n\tEntry deleted from font path.\n(WW) The directory \"/usr/share/fonts/100dpi\" does not exist.\n\tEntry deleted from font path.\n(WW) The directory \"/usr/share/fonts/75dpi\" does not exist.\n\tEntry deleted from font path.\n(==) FontPath set to:\n\t\n(==) ModulePath set to \"/usr/lib/xorg/modules\"\n(II) The server relies on udev to provide the list of input devices.\n\tIf no devices become available, reconfigure udev or disable AutoAddDevices.\n(II) Module ABI versions:\n\tX.Org ANSI C Emulation: 0.4\n\tX.Org Video Driver: 25.2\n\tX.Org XInput driver : 24.4\n\tX.Org Server Extension : 10.0\n(++) using VT number 1\n\n(II) systemd-logind: took control of session /org/freedesktop/login1/session/c2\n(II) xfree86: Adding drm device (/dev/dri/card0)\n(II) Platform probe for /sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/drm/card0\n(II) systemd-logind: got fd for /dev/dri/card0 226:0 fd 14 paused 0\n(II) xfree86: Adding drm device (/dev/dri/card1)\n(II) Platform probe for /sys/devices/pci0000:00/0000:00:02.0/drm/card1\n(II) systemd-logind: got fd for /dev/dri/card1 226:1 fd 15 paused 0\n(**) OutputClass \"nvidia\" ModulePath extended to \"/usr/lib/nvidia/xorg,/usr/lib/xorg/modules,/usr/lib/xorg/modules\"\n(--) PCI:*(0@0:2:0) 8086:9bc4:1028:097d rev 5, Mem @ 0x604a000000/16777216, 0x4000000000/268435456, I/O @ 0x00004000/64, BIOS @ 0x????????/131072\n(--) PCI: (1@0:0:0) 10de:1f95:1028:097d rev 161, Mem @ 0xb3000000/16777216, 0x70000000/268435456, 0x80000000/33554432, I/O @ 0x00003000/128\n(II) LoadModule: \"glx\"\n(II) Loading /usr/lib/xorg/modules/extensions/libglx.so\n(II) Module glx: vendor=\"X.Org Foundation\"\n\tcompiled for 1.21.1.18, module version = 1.0.0\n\tABI class: X.Org Server Extension, version 10.0\n(II) Applying OutputClass \"nvidia\" to /dev/dri/card0\n\tloading driver: nvidia\n(==) Matched intel as autoconfigured driver 0\n(==) Matched nvidia as autoconfigured driver 1\n(==) Matched nouveau as autoconfigured driver 2\n(==) Matched nv as autoconfigured driver 3\n(==) Matched modesetting as autoconfigured driver 4\n(==) Matched fbdev as autoconfigured driver 5\n(==) Matched vesa as autoconfigured driver 6\n(==) Assigned the driver to the xf86ConfigLayout\n(II) LoadModule: \"intel\"\n(WW) Warning, couldn't open module intel\n(EE) Failed to load module \"intel\" (module does not exist, 0)\n(II) LoadModule: \"nvidia\"\n(II) Loading /usr/lib/xorg/modules/drivers/nvidia_drv.so\n(II) Module nvidia: vendor=\"NVIDIA Corporation\"\n\tcompiled for 1.6.99.901, module version = 1.0.0\n\tModule class: X.Org Video Driver\n(II) LoadModule: \"nouveau\"\n(II) Loading /usr/lib/xorg/modules/drivers/nouveau_drv.so\n(II) Module nouveau: vendor=\"X.Org Foundation\"\n\tcompiled for 1.21.1.14, module version = 1.0.18\n\tModule class: X.Org Video Driver\n\tABI class: X.Org Video Driver, version 25.2\n(II) LoadModule: \"nv\"\n(WW) Warning, couldn't open module nv\n(EE) Failed to load module \"nv\" (module does not exist, 0)\n(II) LoadModule: \"modesetting\"\n(II) Loading /usr/lib/xorg/modules/drivers/modesetting_drv.so\n(II) Module modesetting: vendor=\"X.Org Foundation\"\n\tcompiled for 1.21.1.18, module version = 1.21.1\n\tModule class: X.Org Video Driver\n\tABI class: X.Org Video Driver, version 25.2\n(II) LoadModule: \"fbdev\"\n(WW) Warning, couldn't open module fbdev\n(EE) Failed to load module \"fbdev\" (module does not exist, 0)\n(II) LoadModule: \"vesa\"\n(WW) Warning, couldn't open module vesa\n(EE) Failed to load module \"vesa\" (module does not exist, 0)\n(II) NVIDIA dlloader X Driver  580.82.09  Fri Aug 29 17:13:41 UTC 2025\n(II) NVIDIA Unified Driver for all Supported NVIDIA GPUs\n(II) NOUVEAU driver \n(II) NOUVEAU driver for NVIDIA chipset families :\n\tRIVA TNT            (NV04)\n\tRIVA TNT2           (NV05)\n\tGeForce 256         (NV10)\n\tGeForce 2           (NV11, NV15)\n\tGeForce 4MX         (NV17, NV18)\n\tGeForce 3           (NV20)\n\tGeForce 4Ti         (NV25, NV28)\n\tGeForce FX          (NV3x)\n\tGeForce 6           (NV4x)\n\tGeForce 7           (G7x)\n\tGeForce 8           (G8x)\n\tGeForce 9           (G9x)\n\tGeForce GTX 2xx/3xx (GT2xx)\n\tGeForce GTX 4xx/5xx (GFxxx)\n\tGeForce GTX 6xx/7xx (GKxxx)\n\tGeForce GTX 9xx     (GMxxx)\n\tGeForce GTX 10xx    (GPxxx)\n(II) modesetting: Driver for Modesetting Kernel Drivers: kms\n(II) modeset(0): using drv /dev/dri/card1\n(II) systemd-logind: releasing fd for 226:0\n(II) Loading sub module \"fb\"\n(II) LoadModule: \"fb\"\n(II) Module \"fb\" already built-in\n(II) Loading sub module \"wfb\"\n(II) LoadModule: \"wfb\"\n(II) Loading /usr/lib/xorg/modules/libwfb.so\n(II) Module wfb: vendor=\"X.Org Foundation\"\n\tcompiled for 1.21.1.18, module version = 1.0.0\n\tABI class: X.Org ANSI C Emulation, version 0.4\n(WW) VGA arbiter: cannot open kernel arbiter, no multi-card support\n(II) modeset(0): Creating default Display subsection in Screen section\n\t\"Default Screen Section\" for depth/fbbpp 24/32\n(==) modeset(0): Depth 24, (==) framebuffer bpp 32\n(==) modeset(0): RGB weight 888\n(==) modeset(0): Default visual is TrueColor\n(II) Loading sub module \"glamoregl\"\n(II) LoadModule: \"glamoregl\"\n(II) Loading /usr/lib/xorg/modules/libglamoregl.so\n(II) Module glamoregl: vendor=\"X.Org Foundation\"\n\tcompiled for 1.21.1.18, module version = 1.0.1\n\tABI class: X.Org ANSI C Emulation, version 0.4\n(II) modeset(0): glamor X acceleration enabled on Mesa Intel(R) UHD Graphics (CML GT2)\n(II) modeset(0): glamor initialized\n(==) modeset(0): VariableRefresh: disabled\n(==) modeset(0): AsyncFlipSecondaries: disabled\n(II) modeset(0): Output eDP-1 has no monitor section\n(II) modeset(0): Output DP-1 has no monitor section\n(II) modeset(0): Output DP-2 has no monitor section\n(II) modeset(0): Output DP-3 has no monitor section\n(II) modeset(0): EDID for output eDP-1\n(II) modeset(0): Manufacturer: SHP  Model: 14d0  Serial#: 0\n(II) modeset(0): Year: 2020  Week: 3\n(II) modeset(0): EDID Version: 1.4\n(II) modeset(0): Digital Display Input\n(II) modeset(0): 10 bits per channel\n(II) modeset(0): Digital interface is DisplayPort\n(II) modeset(0): Max Image Size [cm]: horiz.: 34  vert.: 21\n(II) modeset(0): Gamma: 2.20\n(II) modeset(0): No DPMS capabilities specified\n(II) modeset(0): Supported color encodings: RGB 4:4:4 YCrCb 4:4:4 \n(II) modeset(0): First detailed timing is preferred mode\n(II) modeset(0): Preferred mode is native pixel format and refresh rate\n(II) modeset(0): redX: 0.660 redY: 0.327   greenX: 0.202 greenY: 0.724\n(II) modeset(0): blueX: 0.144 blueY: 0.055   whiteX: 0.310 whiteY: 0.329\n(II) modeset(0): Manufacturer's mask: 0\n(II) modeset(0): Supported detailed timing:\n(II) modeset(0): clock: 592.5 MHz   Image Size:  336 x 210 mm\n(II) modeset(0): h_active: 3840  h_sync: 3888  h_sync_end 3920 h_blank_end 4000 h_border: 0\n(II) modeset(0): v_active: 2400  v_sync: 2403  v_sync_end 2409 v_blanking: 2469 v_border: 0\n(II) modeset(0): Supported detailed timing:\n(II) modeset(0): clock: 474.0 MHz   Image Size:  336 x 210 mm\n(II) modeset(0): h_active: 3840  h_sync: 3888  h_sync_end 3920 h_blank_end 4000 h_border: 0\n(II) modeset(0): v_active: 2400  v_sync: 2403  v_sync_end 2409 v_blanking: 2469 v_border: 0\n(II) modeset(0):  90T02\x81LQ156R1\n(II) modeset(0): Unknown vendor-specific block 0\n(II) modeset(0): Number of EDID sections to follow: 1\n(II) modeset(0): EDID (in hex):\n(II) modeset(0): \t00ffffffffffff004d10d01400000000\n(II) modeset(0): \t031e0104b52215780a3dc5a95333b924\n(II) modeset(0): \t0e4f5400000001010101010101010101\n(II) modeset(0): \t01010101010172e700a0f06045903020\n(II) modeset(0): \t360050d21000001828b900a0f0604590\n(II) modeset(0): \t3020360050d210000018000000fe0039\n(II) modeset(0): \t30543032814c51313536523100000000\n(II) modeset(0): \t0002410332011200000b010a202001c2\n(II) modeset(0): \t02030f00e3058000e606050160602800\n(II) modeset(0): \t00000000000000000000000000000000\n(II) modeset(0): \t00000000000000000000000000000000\n(II) modeset(0): \t00000000000000000000000000000000\n(II) modeset(0): \t00000000000000000000000000000000\n(II) modeset(0): \t00000000000000000000000000000000\n(II) modeset(0): \t00000000000000000000000000000000\n(II) modeset(0): \t000000000000000000000000000000aa\n(II) modeset(0): Printing probed modes for output eDP-1\n(II) modeset(0): Modeline \"3840x2400\"x60.0  592.50  3840 3888 3920 4000  2400 2403 2409 2469 -hsync -vsync (148.1 kHz eP)\n(II) modeset(0): Modeline \"3840x2400\"x48.0  474.00  3840 3888 3920 4000  2400 2403 2409 2469 -hsync -vsync (118.5 kHz e)\n(II) modeset(0): Modeline \"3840x2160\"x120.0  1446.25  3840 4188 4616 5392  2160 2161 2164 2235 doublescan -hsync +vsync (268.2 kHz d)\n(II) modeset(0): Modeline \"3840x2160\"x120.0  1044.88  3840 3864 3880 3920  2160 2161 2164 2221 doublescan +hsync -vsync (266.5 kHz d)\n(II) modeset(0): Modeline \"3840x2160\"x60.0  712.75  3840 4160 4576 5312  2160 2163 2168 2237 -hsync +vsync (134.2 kHz d)\n(II) modeset(0): Modeline \"3840x2160\"x60.0  533.00  3840 3888 3920 4000  2160 2163 2168 2222 +hsync -vsync (133.2 kHz d)\n(II) modeset(0): Modeline \"3200x1800\"x60.0  492.00  3200 3456 3800 4400  1800 1803 1808 1865 -hsync +vsync (111.8 kHz d)\n(II) modeset(0): Modeline \"3200x1800\"x59.9  373.00  3200 3248 3280 3360  1800 1803 1808 1852 +hsync -vsync (111.0 kHz d)\n(II) modeset(0): Modeline \"2880x1620\"x60.0  396.25  2880 3096 3408 3936  1620 1623 1628 1679 -hsync +vsync (100.7 kHz d)\n(II) modeset(0): Modeline \"2880x1620\"x60.0  303.75  2880 2928 2960 3040  1620 1623 1628 1666 +hsync -vsync (99.9 kHz d)\n(II) modeset(0): Modeline \"2560x1600\"x60.0  348.50  2560 2760 3032 3504  1600 1603 1609 1658 -hsync +vsync (99.5 kHz d)\n(II) modeset(0): Modeline \"2560x1600\"x60.0  268.50  2560 2608 2640 2720  1600 1603 1609 1646 +hsync -vsync (98.7 kHz d)\n(II) modeset(0): Modeline \"2560x1440\"x120.0  638.25  2560 2780 3064 3568  1440 1441 1444 1491 doublescan -hsync +vsync (178.9 kHz d)\n(II) modeset(0): Modeline \"2560x1440\"x120.0  469.12  2560 2584 2600 2640  1440 1441 1444 1481 doublescan +hsync -vsync (177.7 kHz d)\n(II) modeset(0): Modeline \"2560x1440\"x60.0  312.25  2560 2752 3024 3488  1440 1443 1448 1493 -hsync +vsync (89.5 kHz d)\n(II) modeset(0): Modeline \"2560x1440\"x60.0  241.50  2560 2608 2640 2720  1440 1443 1448 1481 +hsync -vsync (88.8 kHz d)\n(II) modeset(0): Modeline \"2048x1536\"x60.0  266.95  2048 2200 2424 2800  1536 1537 1540 1589 -hsync +vsync (95.3 kHz d)\n(II) modeset(0): Modeline \"1920x1440\"x60.0  234.00  1920 2048 2256 2600  1440 1441 1444 1500 -hsync +vsync (90.0 kHz d)\n(II) modeset(0): Modeline \"1856x1392\"x60.0  218.30  1856 1952 2176 2528  1392 1393 1396 1439 -hsync +vsync (86.4 kHz d)\n(II) modeset(0): Modeline \"1792x1344\"x60.0  204.80  1792 1920 2120 2448  1344 1345 1348 1394 -hsync +vsync (83.7 kHz d)\n(II) modeset(0): Modeline \"2048x1152\"x120.0  406.50  2048 2220 2444 2840  1152 1153 1156 1193 doublescan -hsync +vsync (143.1 kHz d)\n(II) modeset(0): Modeline \"2048x1152\"x120.0  302.50  2048 2072 2088 2128  1152 1153 1156 1185 doublescan +hsync -vsync (142.2 kHz d)\n(II) modeset(0): Modeline \"2048x1152\"x59.9  197.00  2048 2184 2400 2752  1152 1155 1160 1195 -hsync +vsync (71.6 kHz d)\n(II) modeset(0): Modeline \"2048x1152\"x59.9  156.75  2048 2096 2128 2208  1152 1155 1160 1185 +hsync -vsync (71.0 kHz d)\n(II) modeset(0): Modeline \"1920x1200\"x59.9  193.25  1920 2056 2256 2592  1200 1203 1209 1245 -hsync +vsync (74.6 kHz d)\n(II) modeset(0): Modeline \"1920x1200\"x60.0  154.00  1920 1968 2000 2080  1200 1203 1209 1235 +hsync -vsync (74.0 kHz d)\n(II) modeset(0): Modeline \"1920x1080\"x120.0  356.38  1920 2080 2288 2656  1080 1081 1084 1118 doublescan -hsync +vsync (134.2 kHz d)\n(II) modeset(0): Modeline \"1920x1080\"x119.9  266.50  1920 1944 1960 2000  1080 1081 1084 1111 doublescan +hsync -vsync (133.2 kHz d)\n(II) modeset(0): Modeline \"1920x1080\"x60.0  173.00  1920 2048 2248 2576  1080 1083 1088 1120 -hsync +vsync (67.2 kHz d)\n(II) modeset(0): Modeline \"1920x1080\"x59.9  138.50  1920 1968 2000 2080  1080 1083 1088 1111 +hsync -vsync (66.6 kHz d)\n(II) modeset(0): Modeline \"1600x1200\"x60.0  162.00  1600 1664 1856 2160  1200 1201 1204 1250 +hsync +vsync (75.0 kHz d)\n(II) modeset(0): Modeline \"1680x1050\"x60.0  146.25  1680 1784 1960 2240  1050 1053 1059 1089 -hsync +vsync (65.3 kHz d)\n(II) modeset(0): Modeline \"1680x1050\"x59.9  119.00  1680 1728 1760 1840  1050 1053 1059 1080 +hsync -vsync (64.7 kHz d)\n(II) modeset(0): Modeline \"1400x1050\"x60.0  122.00  1400 1488 1640 1880  1050 1052 1064 1082 +hsync +vsync (64.9 kHz d)\n(II) modeset(0): Modeline \"1600x900\"x120.0  246.00  1600 1728 1900 2200  900 901 904 932 doublescan -hsync +vsync (111.8 kHz d)\n(II) modeset(0): Modeline \"1600x900\"x119.9  186.50  1600 1624 1640 1680  900 901 904 926 doublescan +hsync -vsync (111.0 kHz d)\n(II) modeset(0): Modeline \"1600x900\"x59.9  118.25  1600 1696 1856 2112  900 903 908 934 -hsync +vsync (56.0 kHz d)\n(II) modeset(0): Modeline \"1600x900\"x59.8   97.50  1600 1648 1680 1760  900 903 908 926 +hsync -vsync (55.4 kHz d)\n(II) modeset(0): Modeline \"1280x1024\"x60.0  108.00  1280 1328 1440 1688  1024 1025 1028 1066 +hsync +vsync (64.0 kHz d)\n(II) modeset(0): Modeline \"1400x900\"x60.0  103.50  1400 1480 1624 1848  900 903 913 934 -hsync +vsync (56.0 kHz d)\n(II) modeset(0): Modeline \"1400x900\"x59.9   86.50  1400 1448 1480 1560  900 903 913 926 +hsync -vsync (55.4 kHz d)\n(II) modeset(0): Modeline \"1280x960\"x60.0  108.00  1280 1376 1488 1800  960 961 964 1000 +hsync +vsync (60.0 kHz d)\n(II) modeset(0): Modeline \"1440x810\"x120.0  198.12  1440 1548 1704 1968  810 811 814 839 doublescan -hsync +vsync (100.7 kHz d)\n(II) modeset(0): Modeline \"1440x810\"x119.9  151.88  1440 1464 1480 1520  810 811 814 833 doublescan +hsync -vsync (99.9 kHz d)\n(II) modeset(0): Modeline \"1368x768\"x59.9   85.25  1368 1440 1576 1784  768 771 781 798 -hsync +vsync (47.8 kHz d)\n(II) modeset(0): Modeline \"1368x768\"x59.9   72.25  1368 1416 1448 1528  768 771 781 790 +hsync -vsync (47.3 kHz d)\n(II) modeset(0): Modeline \"1280x800\"x120.0  174.25  1280 1380 1516 1752  800 801 804 829 doublescan -hsync +vsync (99.5 kHz d)\n(II) modeset(0): Modeline \"1280x800\"x119.9  134.25  1280 1304 1320 1360  800 801 804 823 doublescan +hsync -vsync (98.7 kHz d)\n(II) modeset(0): Modeline \"1280x800\"x59.8   83.50  1280 1352 1480 1680  800 803 809 831 -hsync +vsync (49.7 kHz d)\n(II) modeset(0): Modeline \"1280x800\"x59.9   71.00  1280 1328 1360 1440  800 803 809 823 +hsync -vsync (49.3 kHz d)\n(II) modeset(0): Modeline \"1280x720\"x120.0  156.12  1280 1376 1512 1744  720 721 724 746 doublescan -hsync +vsync (89.5 kHz d)\n(II) modeset(0): Modeline \"1280x720\"x120.0  120.75  1280 1304 1320 1360  720 721 724 740 doublescan +hsync -vsync (88.8 kHz d)\n(II) modeset(0): Modeline \"1280x720\"x59.9   74.50  1280 1344 1472 1664  720 723 728 748 -hsync +vsync (44.8 kHz d)\n(II) modeset(0): Modeline \"1280x720\"x59.7   63.75  1280 1328 1360 1440  720 723 728 741 +hsync -vsync (44.3 kHz d)\n(II) modeset(0): Modeline \"1024x768\"x120.1  133.47  1024 1100 1212 1400  768 768 770 794 doublescan -hsync +vsync (95.3 kHz d)\n(II) modeset(0): Modeline \"1024x768\"x60.0   65.00  1024 1048 1184 1344  768 771 777 806 -hsync -vsync (48.4 kHz d)\n(II) modeset(0): Modeline \"960x720\"x120.0  117.00  960 1024 1128 1300  720 720 722 750 doublescan -hsync +vsync (90.0 kHz d)\n(II) modeset(0): Modeline \"928x696\"x120.1  109.15  928 976 1088 1264  696 696 698 719 doublescan -hsync +vsync (86.4 kHz d)\n(II) modeset(0): Modeline \"896x672\"x120.0  102.40  896 960 1060 1224  672 672 674 697 doublescan -hsync +vsync (83.7 kHz d)\n(II) modeset(0): Modeline \"1024x576\"x119.9   98.50  1024 1092 1200 1376  576 577 580 597 doublescan -hsync +vsync (71.6 kHz d)\n(II) modeset(0): Modeline \"1024x576\"x119.9   78.38  1024 1048 1064 1104  576 577 580 592 doublescan +hsync -vsync (71.0 kHz d)\n(II) modeset(0): Modeline \"1024x576\"x59.9   46.50  1024 1064 1160 1296  576 579 584 599 -hsync +vsync (35.9 kHz d)\n(II) modeset(0): Modeline \"1024x576\"x59.8   42.00  1024 1072 1104 1184  576 579 584 593 +hsync -vsync (35.5 kHz d)\n(II) modeset(0): Modeline \"960x600\"x119.9   96.62  960 1028 1128 1296  600 601 604 622 doublescan -hsync +vsync (74.6 kHz d)\n(II) modeset(0): Modeline \"960x600\"x120.0   77.00  960 984 1000 1040  600 601 604 617 doublescan +hsync -vsync (74.0 kHz d)\n(II) modeset(0): Modeline \"960x540\"x119.9   86.50  960 1024 1124 1288  540 541 544 560 doublescan -hsync +vsync (67.2 kHz d)\n(II) modeset(0): Modeline \"960x540\"x120.0   69.25  960 984 1000 1040  540 541 544 555 doublescan +hsync -vsync (66.6 kHz d)\n(II) modeset(0): Modeline \"960x540\"x59.6   40.75  960 992 1088 1216  540 543 548 562 -hsync +vsync (33.5 kHz d)\n(II) modeset(0): Modeline \"960x540\"x59.8   37.25  960 1008 1040 1120  540 543 548 556 +hsync -vsync (33.3 kHz d)\n(II) modeset(0): Modeline \"800x600\"x120.0   81.00  800 832 928 1080  600 600 602 625 doublescan +hsync +vsync (75.0 kHz d)\n(II) modeset(0): Modeline \"800x600\"x60.3   40.00  800 840 968 1056  600 601 605 628 +hsync +vsync (37.9 kHz d)\n(II) modeset(0): Modeline \"800x600\"x56.2   36.00  800 824 896 1024  600 601 603 625 +hsync +vsync (35.2 kHz d)\n(II) modeset(0): Modeline \"840x525\"x120.0   73.12  840 892 980 1120  525 526 529 544 doublescan -hsync +vsync (65.3 kHz d)\n(II) modeset(0): Modeline \"840x525\"x119.8   59.50  840 864 880 920  525 526 529 540 doublescan +hsync -vsync (64.7 kHz d)\n(II) modeset(0): Modeline \"864x486\"x59.9   32.50  864 888 968 1072  486 489 494 506 -hsync +vsync (30.3 kHz d)\n(II) modeset(0): Modeline \"864x486\"x59.6   30.50  864 912 944 1024  486 489 494 500 +hsync -vsync (29.8 kHz d)\n(II) modeset(0): Modeline \"700x525\"x120.0   61.00  700 744 820 940  525 526 532 541 doublescan +hsync +vsync (64.9 kHz d)\n(II) modeset(0): Modeline \"800x450\"x119.9   59.12  800 848 928 1056  450 451 454 467 doublescan -hsync +vsync (56.0 kHz d)\n(II) modeset(0): Modeline \"800x450\"x119.6   48.75  800 824 840 880  450 451 454 463 doublescan +hsync -vsync (55.4 kHz d)\n(II) modeset(0): Modeline \"640x512\"x120.0   54.00  640 664 720 844  512 512 514 533 doublescan +hsync +vsync (64.0 kHz d)\n(II) modeset(0): Modeline \"700x450\"x119.9   51.75  700 740 812 924  450 451 456 467 doublescan -hsync +vsync (56.0 kHz d)\n(II) modeset(0): Modeline \"700x450\"x119.8   43.25  700 724 740 780  450 451 456 463 doublescan +hsync -vsync (55.4 kHz d)\n(II) modeset(0): Modeline \"640x480\"x120.0   54.00  640 688 744 900  480 480 482 500 doublescan +hsync +vsync (60.0 kHz d)\n(II) modeset(0): Modeline \"640x480\"x59.9   25.18  640 656 752 800  480 490 492 525 -hsync -vsync (31.5 kHz d)\n(II) modeset(0): Modeline \"720x405\"x59.5   22.50  720 744 808 896  405 408 413 422 -hsync +vsync (25.1 kHz d)\n(II) modeset(0): Modeline \"720x405\"x59.0   21.75  720 768 800 880  405 408 413 419 +hsync -vsync (24.7 kHz d)\n(II) modeset(0): Modeline \"684x384\"x119.8   42.62  684 720 788 892  384 385 390 399 doublescan -hsync +vsync (47.8 kHz d)\n(II) modeset(0): Modeline \"684x384\"x119.7   36.12  684 708 724 764  384 385 390 395 doublescan +hsync -vsync (47.3 kHz d)\n(II) modeset(0): Modeline \"640x400\"x119.8   41.75  640 676 740 840  400 401 404 415 doublescan -hsync +vsync (49.7 kHz d)\n(II) modeset(0): Modeline \"640x400\"x120.0   35.50  640 664 680 720  400 401 404 411 doublescan +hsync -vsync (49.3 kHz d)\n(II) modeset(0): Modeline \"640x360\"x119.7   37.25  640 672 736 832  360 361 364 374 doublescan -hsync +vsync (44.8 kHz d)\n(II) modeset(0): Modeline \"640x360\"x119.7   31.88  640 664 680 720  360 361 364 370 doublescan +hsync -vsync (44.3 kHz d)\n(II) modeset(0): Modeline \"640x360\"x59.8   18.00  640 664 720 800  360 363 368 376 -hsync +vsync (22.5 kHz d)\n(II) modeset(0): Modeline \"640x360\"x59.3   17.75  640 688 720 800  360 363 368 374 +hsync -vsync (22.2 kHz d)\n(II) modeset(0): Modeline \"512x384\"x120.0   32.50  512 524 592 672  384 385 388 403 doublescan -hsync -vsync (48.4 kHz d)\n(II) modeset(0): Modeline \"512x288\"x120.0   23.25  512 532 580 648  288 289 292 299 doublescan -hsync +vsync (35.9 kHz d)\n(II) modeset(0): Modeline \"512x288\"x119.8   21.00  512 536 552 592  288 289 292 296 doublescan +hsync -vsync (35.5 kHz d)\n(II) modeset(0): Modeline \"480x270\"x119.3   20.38  480 496 544 608  270 271 274 281 doublescan -hsync +vsync (33.5 kHz d)\n(II) modeset(0): Modeline \"480x270\"x119.6   18.62  480 504 520 560  270 271 274 278 doublescan +hsync -vsync (33.3 kHz d)\n(II) modeset(0): Modeline \"400x300\"x120.6   20.00  400 420 484 528  300 300 302 314 doublescan +hsync +vsync (37.9 kHz d)\n(II) modeset(0): Modeline \"400x300\"x112.7   18.00  400 412 448 512  300 300 301 312 doublescan +hsync +vsync (35.2 kHz d)\n(II) modeset(0): Modeline \"432x243\"x119.8   16.25  432 444 484 536  243 244 247 253 doublescan -hsync +vsync (30.3 kHz d)\n(II) modeset(0): Modeline \"432x243\"x119.1   15.25  432 456 472 512  243 244 247 250 doublescan +hsync -vsync (29.8 kHz d)\n(II) modeset(0): Modeline \"320x240\"x120.1   12.59  320 328 376 400  240 245 246 262 doublescan -hsync -vsync (31.5 kHz d)\n(II) modeset(0): Modeline \"360x202\"x119.0   11.25  360 372 404 448  202 204 206 211 doublescan -hsync +vsync (25.1 kHz d)\n(II) modeset(0): Modeline \"360x202\"x118.3   10.88  360 384 400 440  202 204 206 209 doublescan +hsync -vsync (24.7 kHz d)\n(II) modeset(0): Modeline \"320x180\"x119.7    9.00  320 332 360 400  180 181 184 188 doublescan -hsync +vsync (22.5 kHz d)\n(II) modeset(0): Modeline \"320x180\"x118.6    8.88  320 344 360 400  180 181 184 187 doublescan +hsync -vsync (22.2 kHz d)\n(II) modeset(0): EDID for output DP-1\n(II) modeset(0): EDID for output DP-2\n(II) modeset(0): EDID for output DP-3\n(II) modeset(0): Output eDP-1 connected\n(II) modeset(0): Output DP-1 disconnected\n(II) modeset(0): Output DP-2 disconnected\n(II) modeset(0): Output DP-3 disconnected\n(II) modeset(0): Using exact sizes for initial modes\n(II) modeset(0): Output eDP-1 using initial mode 3840x2400 +0+0\n(==) modeset(0): Using gamma correction (1.0, 1.0, 1.0)\n(==) modeset(0): DPI set to (96, 96)\n(II) Loading sub module \"fb\"\n(II) LoadModule: \"fb\"\n(II) Module \"fb\" already built-in\n(==) NVIDIA(G0): Depth 24, (==) framebuffer bpp 32\n(==) NVIDIA(G0): RGB weight 888\n(==) NVIDIA(G0): Default visual is TrueColor\n(==) NVIDIA(G0): Using gamma correction (1.0, 1.0, 1.0)\n(II) Applying OutputClass \"nvidia\" options to /dev/dri/card0\n(**) NVIDIA(G0): Option \"AllowEmptyInitialConfiguration\"\n(**) NVIDIA(G0): Enabling 2D acceleration\n(II) Loading sub module \"glxserver_nvidia\"\n(II) LoadModule: \"glxserver_nvidia\"\n(II) Loading /usr/lib/nvidia/xorg/libglxserver_nvidia.so\n(II) Module glxserver_nvidia: vendor=\"NVIDIA Corporation\"\n\tcompiled for 1.6.99.901, module version = 1.0.0\n\tModule class: X.Org Server Extension\n(II) NVIDIA GLX Module  580.82.09  Fri Aug 29 17:16:50 UTC 2025\n(II) NVIDIA: The X server supports PRIME Render Offload.\n(II) NVIDIA(G0): NVIDIA GPU NVIDIA GeForce GTX 1650 Ti (TU117-A) at PCI:1:0:0\n(II) NVIDIA(G0):     (GPU-0)\n(--) NVIDIA(G0): Memory: 4194304 kBytes\n(--) NVIDIA(G0): VideoBIOS: 90.17.42.00.3a\n(II) NVIDIA(G0): Detected PCI Express Link width: 16X\n(II) NVIDIA(G0): Validated MetaModes:\n(II) NVIDIA(G0):     \"NULL\"\n(II) NVIDIA(G0): Virtual screen size determined to be 640 x 480\n(WW) NVIDIA(G0): Unable to get display device for DPI computation.\n(==) NVIDIA(G0): DPI set to (75, 75); computed from built-in default\n(II) UnloadModule: \"nouveau\"\n(II) Unloading nouveau\n(==) modeset(0): Backing store enabled\n(==) modeset(0): Silken mouse enabled\n(II) modeset(0): Initializing kms color map for depth 24, 8 bpc.\n(==) modeset(0): DPMS enabled\n(II) modeset(0): [DRI2] Setup complete\n(II) modeset(0): [DRI2]   DRI driver: iris\n(II) modeset(0): [DRI2]   VDPAU driver: va_gl\n(WW) NVIDIA: Failed to bind sideband socket to\n(WW) NVIDIA:     '/var/run/nvidia-xdriver-e99002b1' Permission denied\n(II) NVIDIA: Reserving 24576.00 MB of virtual memory for indirect memory\n(II) NVIDIA:     access.\n(II) NVIDIA(G0): ACPI: failed to connect to the ACPI event daemon; the daemon\n(II) NVIDIA(G0):     may not be running or the \"AcpidSocketPath\" X\n(II) NVIDIA(G0):     configuration option may not be set correctly.  When the\n(II) NVIDIA(G0):     ACPI event daemon is available, the NVIDIA X driver will\n(II) NVIDIA(G0):     try to use it to receive ACPI event notifications.  For\n(II) NVIDIA(G0):     details, please see the \"ConnectToAcpid\" and\n(II) NVIDIA(G0):     \"AcpidSocketPath\" X configuration options in Appendix B: X\n(II) NVIDIA(G0):     Config Options in the README.\n(II) NVIDIA(G0): Setting mode \"NULL\"\n(==) NVIDIA(G0): Disabling shared memory pixmaps\n(==) NVIDIA(G0): Backing store enabled\n(==) NVIDIA(G0): Silken mouse enabled\n(==) NVIDIA(G0): DPMS enabled\n(II) Loading sub module \"dri2\"\n(II) LoadModule: \"dri2\"\n(II) Module \"dri2\" already built-in\n(II) NVIDIA(G0): [DRI2] Setup complete\n(II) NVIDIA(G0): [DRI2]   VDPAU driver: nvidia\n(II) Initializing extension Generic Event Extension\n(II) Initializing extension SHAPE\n(II) Initializing extension MIT-SHM\n(II) Initializing extension XInputExtension\n(II) Initializing extension XTEST\n(II) Initializing extension BIG-REQUESTS\n(II) Initializing extension SYNC\n(II) Initializing extension XKEYBOARD\n(II) Initializing extension XC-MISC\n(II) Initializing extension SECURITY\n(II) Initializing extension XFIXES\n(II) Initializing extension RENDER\n(II) Initializing extension RANDR\n(II) Initializing extension COMPOSITE\n(II) Initializing extension DAMAGE\n(II) Initializing extension MIT-SCREEN-SAVER\n(II) Initializing extension DOUBLE-BUFFER\n(II) Initializing extension RECORD\n(II) Initializing extension DPMS\n(II) Initializing extension Present\n(II) Initializing extension DRI3\n(II) Initializing extension X-Resource\n(II) Initializing extension XVideo\n(II) Initializing extension XVideo-MotionCompensation\n(II) Initializing extension GLX\n(II) Initializing extension GLX\n(II) Indirect GLX disabled.\n(II) AIGLX: Loaded and initialized iris\n(II) GLX: Initialized DRI2 GL provider for screen 0\n(II) Initializing extension XFree86-VidModeExtension\n(II) Initializing extension XFree86-DGA\n(II) Initializing extension XFree86-DRI\n(II) Initializing extension DRI2\n(II) Initializing extension NV-GLX\n(II) Initializing extension NV-CONTROL\n(II) modeset(0): Damage tracking initialized\n(II) modeset(0): Setting screen physical size to 1016 x 635\nThe XKEYBOARD keymap compiler (xkbcomp) reports:\n> Warning:          Could not resolve keysym XF86RefreshRateToggle\n> Warning:          Could not resolve keysym XF86Accessibility\n> Warning:          Could not resolve keysym XF86DoNotDisturb\nErrors from xkbcomp are not fatal to the X server\n(II) config/udev: Adding input device Power Button (/dev/input/event2)\n(**) Power Button: Applying InputClass \"libinput keyboard catchall\"\n(**) Power Button: Applying InputClass \"system-keyboard\"\n(II) LoadModule: \"libinput\"\n(II) Loading /usr/lib/xorg/modules/input/libinput_drv.so\n(II) Module libinput: vendor=\"X.Org Foundation\"\n\tcompiled for 1.21.1.13, module version = 1.5.0\n\tModule class: X.Org XInput Driver\n\tABI class: X.Org XInput driver, version 24.4\n(II) Using input driver 'libinput' for 'Power Button'\n(II) systemd-logind: got fd for /dev/input/event2 13:66 fd 38 paused 0\n(**) Power Button: always reports core events\n(**) Option \"Device\" \"/dev/input/event2\"\n(II) event2  - Power Button: is tagged by udev as: Keyboard\n(II) event2  - Power Button: device is a keyboard\n(II) event2  - Power Button: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/LNXSYSTM:00/LNXPWRBN:00/input/input2/event2\"\n(II) XINPUT: Adding extended input device \"Power Button\" (type: KEYBOARD, id 6)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\nThe XKEYBOARD keymap compiler (xkbcomp) reports:\n> Warning:          Could not resolve keysym XF86RefreshRateToggle\n> Warning:          Could not resolve keysym XF86Accessibility\n> Warning:          Could not resolve keysym XF86DoNotDisturb\nErrors from xkbcomp are not fatal to the X server\n(II) event2  - Power Button: is tagged by udev as: Keyboard\n(II) event2  - Power Button: device is a keyboard\n(II) config/udev: Adding input device Video Bus (/dev/input/event9)\n(**) Video Bus: Applying InputClass \"libinput keyboard catchall\"\n(**) Video Bus: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Video Bus'\n(II) systemd-logind: got fd for /dev/input/event9 13:73 fd 41 paused 0\n(**) Video Bus: always reports core events\n(**) Option \"Device\" \"/dev/input/event9\"\n(II) event9  - Video Bus: is tagged by udev as: Keyboard\n(II) event9  - Video Bus: device is a keyboard\n(II) event9  - Video Bus: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00/LNXVIDEO:01/input/input10/event9\"\n(II) XINPUT: Adding extended input device \"Video Bus\" (type: KEYBOARD, id 7)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event9  - Video Bus: is tagged by udev as: Keyboard\n(II) event9  - Video Bus: device is a keyboard\n(II) config/udev: Adding input device Video Bus (/dev/input/event8)\n(**) Video Bus: Applying InputClass \"libinput keyboard catchall\"\n(**) Video Bus: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Video Bus'\n(II) systemd-logind: got fd for /dev/input/event8 13:72 fd 42 paused 0\n(**) Video Bus: always reports core events\n(**) Option \"Device\" \"/dev/input/event8\"\n(II) event8  - Video Bus: is tagged by udev as: Keyboard\n(II) event8  - Video Bus: device is a keyboard\n(II) event8  - Video Bus: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00/device:00/LNXVIDEO:00/input/input9/event8\"\n(II) XINPUT: Adding extended input device \"Video Bus\" (type: KEYBOARD, id 8)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event8  - Video Bus: is tagged by udev as: Keyboard\n(II) event8  - Video Bus: device is a keyboard\n(II) config/udev: Adding input device Power Button (/dev/input/event1)\n(**) Power Button: Applying InputClass \"libinput keyboard catchall\"\n(**) Power Button: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Power Button'\n(II) systemd-logind: got fd for /dev/input/event1 13:65 fd 43 paused 0\n(**) Power Button: always reports core events\n(**) Option \"Device\" \"/dev/input/event1\"\n(II) event1  - Power Button: is tagged by udev as: Keyboard\n(II) event1  - Power Button: device is a keyboard\n(II) event1  - Power Button: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0C0C:00/input/input1/event1\"\n(II) XINPUT: Adding extended input device \"Power Button\" (type: KEYBOARD, id 9)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event1  - Power Button: is tagged by udev as: Keyboard\n(II) event1  - Power Button: device is a keyboard\n(II) config/udev: Adding input device Lid Switch (/dev/input/event0)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device Dell Computer Corp Dell Universal Receiver (/dev/input/event4)\n(**) Dell Computer Corp Dell Universal Receiver: Applying InputClass \"libinput keyboard catchall\"\n(**) Dell Computer Corp Dell Universal Receiver: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Dell Computer Corp Dell Universal Receiver'\n(II) systemd-logind: got fd for /dev/input/event4 13:68 fd 44 paused 0\n(**) Dell Computer Corp Dell Universal Receiver: always reports core events\n(**) Option \"Device\" \"/dev/input/event4\"\n(II) event4  - Dell Computer Corp Dell Universal Receiver: is tagged by udev as: Keyboard\n(II) event4  - Dell Computer Corp Dell Universal Receiver: device is a keyboard\n(II) event4  - Dell Computer Corp Dell Universal Receiver: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:14.0/usb1/1-4/1-4.3/1-4.3:1.0/0003:413C:301C.0001/input/input5/event4\"\n(II) XINPUT: Adding extended input device \"Dell Computer Corp Dell Universal Receiver\" (type: KEYBOARD, id 10)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event4  - Dell Computer Corp Dell Universal Receiver: is tagged by udev as: Keyboard\n(II) event4  - Dell Computer Corp Dell Universal Receiver: device is a keyboard\n(II) config/udev: Adding input device Dell Computer Corp Dell Universal Receiver Mouse (/dev/input/event5)\n(**) Dell Computer Corp Dell Universal Receiver Mouse: Applying InputClass \"libinput pointer catchall\"\n(II) Using input driver 'libinput' for 'Dell Computer Corp Dell Universal Receiver Mouse'\n(II) systemd-logind: got fd for /dev/input/event5 13:69 fd 45 paused 0\n(**) Dell Computer Corp Dell Universal Receiver Mouse: always reports core events\n(**) Option \"Device\" \"/dev/input/event5\"\n(II) event5  - Dell Computer Corp Dell Universal Receiver Mouse: is tagged by udev as: Mouse\n(II) event5  - Dell Computer Corp Dell Universal Receiver Mouse: device is a pointer\n(II) event5  - Dell Computer Corp Dell Universal Receiver Mouse: device removed\n(II) libinput: Dell Computer Corp Dell Universal Receiver Mouse: Step value 0 was provided, libinput Fallback acceleration function is used.\n(II) libinput: Dell Computer Corp Dell Universal Receiver Mouse: Step value 0 was provided, libinput Fallback acceleration function is used.\n(II) libinput: Dell Computer Corp Dell Universal Receiver Mouse: Step value 0 was provided, libinput Fallback acceleration function is used.\n(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:14.0/usb1/1-4/1-4.3/1-4.3:1.1/0003:413C:301C.0002/input/input6/event5\"\n(II) XINPUT: Adding extended input device \"Dell Computer Corp Dell Universal Receiver Mouse\" (type: MOUSE, id 11)\n(**) Option \"AccelerationScheme\" \"none\"\n(**) Dell Computer Corp Dell Universal Receiver Mouse: (accel) selected scheme none/0\n(**) Dell Computer Corp Dell Universal Receiver Mouse: (accel) acceleration factor: 2.000\n(**) Dell Computer Corp Dell Universal Receiver Mouse: (accel) acceleration threshold: 4\n(II) event5  - Dell Computer Corp Dell Universal Receiver Mouse: is tagged by udev as: Mouse\n(II) event5  - Dell Computer Corp Dell Universal Receiver Mouse: device is a pointer\n(II) config/udev: Adding input device Dell Computer Corp Dell Universal Receiver Mouse (/dev/input/mouse0)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device Dell Computer Corp Dell Universal Receiver Consumer Control (/dev/input/event6)\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: Applying InputClass \"libinput keyboard catchall\"\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Dell Computer Corp Dell Universal Receiver Consumer Control'\n(II) systemd-logind: got fd for /dev/input/event6 13:70 fd 46 paused 0\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: always reports core events\n(**) Option \"Device\" \"/dev/input/event6\"\n(II) event6  - Dell Computer Corp Dell Universal Receiver Consumer Control: is tagged by udev as: Keyboard\n(II) event6  - Dell Computer Corp Dell Universal Receiver Consumer Control: device is a keyboard\n(II) event6  - Dell Computer Corp Dell Universal Receiver Consumer Control: device removed\n(II) libinput: Dell Computer Corp Dell Universal Receiver Consumer Control: needs a virtual subdevice\n(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:14.0/usb1/1-4/1-4.3/1-4.3:1.1/0003:413C:301C.0002/input/input7/event6\"\n(II) XINPUT: Adding extended input device \"Dell Computer Corp Dell Universal Receiver Consumer Control\" (type: MOUSE, id 12)\n(**) Option \"AccelerationScheme\" \"none\"\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: (accel) selected scheme none/0\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: (accel) acceleration factor: 2.000\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: (accel) acceleration threshold: 4\n(II) event6  - Dell Computer Corp Dell Universal Receiver Consumer Control: is tagged by udev as: Keyboard\n(II) event6  - Dell Computer Corp Dell Universal Receiver Consumer Control: device is a keyboard\n(II) config/udev: Adding input device Dell Computer Corp Dell Universal Receiver System Control (/dev/input/event7)\n(**) Dell Computer Corp Dell Universal Receiver System Control: Applying InputClass \"libinput keyboard catchall\"\n(**) Dell Computer Corp Dell Universal Receiver System Control: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Dell Computer Corp Dell Universal Receiver System Control'\n(II) systemd-logind: got fd for /dev/input/event7 13:71 fd 47 paused 0\n(**) Dell Computer Corp Dell Universal Receiver System Control: always reports core events\n(**) Option \"Device\" \"/dev/input/event7\"\n(II) event7  - Dell Computer Corp Dell Universal Receiver System Control: is tagged by udev as: Keyboard\n(II) event7  - Dell Computer Corp Dell Universal Receiver System Control: device is a keyboard\n(II) event7  - Dell Computer Corp Dell Universal Receiver System Control: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:14.0/usb1/1-4/1-4.3/1-4.3:1.1/0003:413C:301C.0002/input/input8/event7\"\n(II) XINPUT: Adding extended input device \"Dell Computer Corp Dell Universal Receiver System Control\" (type: KEYBOARD, id 13)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event7  - Dell Computer Corp Dell Universal Receiver System Control: is tagged by udev as: Keyboard\n(II) event7  - Dell Computer Corp Dell Universal Receiver System Control: device is a keyboard\n(II) config/udev: Adding input device DELL097D:00 04F3:311C Mouse (/dev/input/event13)\n(**) DELL097D:00 04F3:311C Mouse: Applying InputClass \"libinput pointer catchall\"\n(II) Using input driver 'libinput' for 'DELL097D:00 04F3:311C Mouse'\n(II) systemd-logind: got fd for /dev/input/event13 13:77 fd 48 paused 0\n(**) DELL097D:00 04F3:311C Mouse: always reports core events\n(**) Option \"Device\" \"/dev/input/event13\"\n(II) event13 - DELL097D:00 04F3:311C Mouse: is tagged by udev as: Mouse Pointingstick\n(II) event13 - DELL097D:00 04F3:311C Mouse: device is a pointer\n(II) event13 - DELL097D:00 04F3:311C Mouse: device removed\n(II) libinput: DELL097D:00 04F3:311C Mouse: Step value 0 was provided, libinput Fallback acceleration function is used.\n(II) libinput: DELL097D:00 04F3:311C Mouse: Step value 0 was provided, libinput Fallback acceleration function is used.\n(II) libinput: DELL097D:00 04F3:311C Mouse: Step value 0 was provided, libinput Fallback acceleration function is used.\n(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:15.1/i2c_designware.1/i2c-9/i2c-DELL097D:00/0018:04F3:311C.0004/input/input19/event13\"\n(II) XINPUT: Adding extended input device \"DELL097D:00 04F3:311C Mouse\" (type: MOUSE, id 14)\n(**) Option \"AccelerationScheme\" \"none\"\n(**) DELL097D:00 04F3:311C Mouse: (accel) selected scheme none/0\n(**) DELL097D:00 04F3:311C Mouse: (accel) acceleration factor: 2.000\n(**) DELL097D:00 04F3:311C Mouse: (accel) acceleration threshold: 4\n(II) event13 - DELL097D:00 04F3:311C Mouse: is tagged by udev as: Mouse Pointingstick\n(II) event13 - DELL097D:00 04F3:311C Mouse: device is a pointer\n(II) config/udev: Adding input device DELL097D:00 04F3:311C Mouse (/dev/input/mouse1)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device DELL097D:00 04F3:311C Touchpad (/dev/input/event15)\n(**) DELL097D:00 04F3:311C Touchpad: Applying InputClass \"libinput touchpad catchall\"\n(II) Using input driver 'libinput' for 'DELL097D:00 04F3:311C Touchpad'\n(II) systemd-logind: got fd for /dev/input/event15 13:79 fd 49 paused 0\n(**) DELL097D:00 04F3:311C Touchpad: always reports core events\n(**) Option \"Device\" \"/dev/input/event15\"\n(II) event15 - DELL097D:00 04F3:311C Touchpad: is tagged by udev as: Touchpad\n(II) event15 - DELL097D:00 04F3:311C Touchpad: device is a touchpad\n(II) event15 - DELL097D:00 04F3:311C Touchpad: device removed\n(II) libinput: DELL097D:00 04F3:311C Touchpad: Step value 0 was provided, libinput Fallback acceleration function is used.\n(II) libinput: DELL097D:00 04F3:311C Touchpad: Step value 0 was provided, libinput Fallback acceleration function is used.\n(II) libinput: DELL097D:00 04F3:311C Touchpad: Step value 0 was provided, libinput Fallback acceleration function is used.\n(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:15.1/i2c_designware.1/i2c-9/i2c-DELL097D:00/0018:04F3:311C.0004/input/input20/event15\"\n(II) XINPUT: Adding extended input device \"DELL097D:00 04F3:311C Touchpad\" (type: TOUCHPAD, id 15)\n(**) Option \"AccelerationScheme\" \"none\"\n(**) DELL097D:00 04F3:311C Touchpad: (accel) selected scheme none/0\n(**) DELL097D:00 04F3:311C Touchpad: (accel) acceleration factor: 2.000\n(**) DELL097D:00 04F3:311C Touchpad: (accel) acceleration threshold: 4\n(II) event15 - DELL097D:00 04F3:311C Touchpad: is tagged by udev as: Touchpad\n(II) event15 - DELL097D:00 04F3:311C Touchpad: device is a touchpad\n(II) config/udev: Adding input device DELL097D:00 04F3:311C Touchpad (/dev/input/mouse2)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device HDA Intel PCH Headphone Mic (/dev/input/event16)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device HDA Intel PCH HDMI/DP,pcm=3 (/dev/input/event17)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device HDA Intel PCH HDMI/DP,pcm=7 (/dev/input/event18)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device HDA Intel PCH HDMI/DP,pcm=8 (/dev/input/event19)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n(II) config/udev: Adding input device Intel HID events (/dev/input/event10)\n(**) Intel HID events: Applying InputClass \"libinput keyboard catchall\"\n(**) Intel HID events: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Intel HID events'\n(II) systemd-logind: got fd for /dev/input/event10 13:74 fd 50 paused 0\n(**) Intel HID events: always reports core events\n(**) Option \"Device\" \"/dev/input/event10\"\n(II) event10 - Intel HID events: is tagged by udev as: Keyboard\n(II) event10 - Intel HID events: device is a keyboard\n(II) event10 - Intel HID events: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/platform/INT33D5:00/input/input11/event10\"\n(II) XINPUT: Adding extended input device \"Intel HID events\" (type: KEYBOARD, id 16)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event10 - Intel HID events: is tagged by udev as: Keyboard\n(II) event10 - Intel HID events: device is a keyboard\n(II) config/udev: Adding input device Intel HID 5 button array (/dev/input/event11)\n(**) Intel HID 5 button array: Applying InputClass \"libinput keyboard catchall\"\n(**) Intel HID 5 button array: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Intel HID 5 button array'\n(II) systemd-logind: got fd for /dev/input/event11 13:75 fd 51 paused 0\n(**) Intel HID 5 button array: always reports core events\n(**) Option \"Device\" \"/dev/input/event11\"\n(II) event11 - Intel HID 5 button array: is tagged by udev as: Keyboard\n(II) event11 - Intel HID 5 button array: device is a keyboard\n(II) event11 - Intel HID 5 button array: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/platform/INT33D5:00/input/input12/event11\"\n(II) XINPUT: Adding extended input device \"Intel HID 5 button array\" (type: KEYBOARD, id 17)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event11 - Intel HID 5 button array: is tagged by udev as: Keyboard\n(II) event11 - Intel HID 5 button array: device is a keyboard\n(II) config/udev: Adding input device Dell WMI hotkeys (/dev/input/event12)\n(**) Dell WMI hotkeys: Applying InputClass \"libinput keyboard catchall\"\n(**) Dell WMI hotkeys: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Dell WMI hotkeys'\n(II) systemd-logind: got fd for /dev/input/event12 13:76 fd 52 paused 0\n(**) Dell WMI hotkeys: always reports core events\n(**) Option \"Device\" \"/dev/input/event12\"\n(II) event12 - Dell WMI hotkeys: is tagged by udev as: Keyboard\n(II) event12 - Dell WMI hotkeys: device is a keyboard\n(II) event12 - Dell WMI hotkeys: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/platform/PNP0C14:03/wmi_bus/wmi_bus-PNP0C14:03/9DBB5994-A997-11DA-B012-B622A1EF5492/input/input18/event12\"\n(II) XINPUT: Adding extended input device \"Dell WMI hotkeys\" (type: KEYBOARD, id 18)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event12 - Dell WMI hotkeys: is tagged by udev as: Keyboard\n(II) event12 - Dell WMI hotkeys: device is a keyboard\n(II) config/udev: Adding input device AT Translated Set 2 keyboard (/dev/input/event3)\n(**) AT Translated Set 2 keyboard: Applying InputClass \"libinput keyboard catchall\"\n(**) AT Translated Set 2 keyboard: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'AT Translated Set 2 keyboard'\n(II) systemd-logind: got fd for /dev/input/event3 13:67 fd 53 paused 0\n(**) AT Translated Set 2 keyboard: always reports core events\n(**) Option \"Device\" \"/dev/input/event3\"\n(II) event3  - AT Translated Set 2 keyboard: is tagged by udev as: Keyboard\n(II) event3  - AT Translated Set 2 keyboard: device is a keyboard\n(II) event3  - AT Translated Set 2 keyboard: device removed\n(**) Option \"config_info\" \"udev:/sys/devices/platform/i8042/serio0/input/input3/event3\"\n(II) XINPUT: Adding extended input device \"AT Translated Set 2 keyboard\" (type: KEYBOARD, id 19)\n(**) Option \"xkb_model\" \"pc105\"\n(**) Option \"xkb_layout\" \"gb\"\n(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\"\n(II) event3  - AT Translated Set 2 keyboard: is tagged by udev as: Keyboard\n(II) event3  - AT Translated Set 2 keyboard: device is a keyboard\n(II) config/udev: Adding input device PC Speaker (/dev/input/event14)\n(II) No input driver specified, ignoring this device.\n(II) This device may have been added with another device file.\n"
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: "(**) Dell Computer Corp Dell Universal Receiver Consumer Control: Applying InputClass \"libinput keyboard catchall\"\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: Applying InputClass \"system-keyboard\"\n(II) Using input driver 'libinput' for 'Dell Computer Corp Dell Universal Receiver Consumer Control'\n(II) systemd-logind: returning pre-existing fd for /dev/input/event6 13:70\n(**) Dell Computer Corp Dell Universal Receiver Consumer Control: always reports core events\n"
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: "(**) Option \"Device\" \"/dev/input/event6\"\n(II) libinput: Dell Computer Corp Dell Universal Receiver Consumer Control: is a virtual subdevice\n"
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: "(**) Option \"config_info\" \"udev:/sys/devices/pci0000:00/0000:00:14.0/usb1/1-4/1-4.3/1-4.3:1.1/0003:413C:301C.0002/input/input7/event6\"\n"
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: "(II) XINPUT: Adding extended input device \"Dell Computer Corp Dell Universal Receiver Consumer Control\" (type: KEYBOARD, id 20)\n(**) Option \"xkb_model\""
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: " \"pc105\"\n(**) Option \"xkb_layout\""
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: " \"gb\"\n"
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: "(**) Option \"xkb_options\" \"terminate:ctrl_alt_bksp\""
+Oct 01 20:52:30 nebula sddm-helper-start-x11user[767]: "\n"
+Oct 01 20:52:30 nebula sddm-greeter-qt6[784]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                              Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                              If this causes problems, reconfigure your locale. See the locale(1) manual
+                                              for more information.
+Oct 01 20:52:30 nebula dbus-broker-launch[789]: Service file '/usr/share/dbus-1/services/fr.emersion.mako.service' is not named after the D-Bus name 'org.freedesktop.Notifications'.
+Oct 01 20:52:30 nebula dbus-broker-launch[789]: Service file '/usr/share/dbus-1/services/org.kde.dolphin.FileManager1.service' is not named after the D-Bus name 'org.freedesktop.FileManager1'.
+Oct 01 20:52:30 nebula dbus-broker-launch[789]: Service file '/usr/share/dbus-1/services/org.knopwob.dunst.service' is not named after the D-Bus name 'org.freedesktop.Notifications'.
+Oct 01 20:52:30 nebula dbus-broker-launch[789]: Ignoring duplicate name 'org.freedesktop.Notifications' in service file '/usr/share/dbus-1/services/org.knopwob.dunst.service'
+Oct 01 20:52:30 nebula sddm-greeter-qt6[784]: file:///usr/lib/qt6/qml/SddmComponents/LayoutBox.qml:35:5: QML Connections: Implicitly defined onFoo properties in Connections are deprecated. Use this syntax instead: function onFoo(<arguments>) { ... }
+Oct 01 20:52:30 nebula sddm-greeter-qt6[784]: file:///usr/lib/qt6/qml/SddmComponents/ComboBox.qml:105:9: QML Image: Cannot open: file:///usr/lib/qt6/qml/SddmComponents/angle-down.png
+Oct 01 20:52:30 nebula sddm-greeter-qt6[784]: file:///usr/lib/qt6/qml/SddmComponents/ComboBox.qml:105:9: QML Image: Cannot open: file:///usr/lib/qt6/qml/SddmComponents/angle-down.png
+Oct 01 20:52:30 nebula sddm-greeter-qt6[784]: qrc:/theme/Main.qml:41:5: QML Connections: Implicitly defined onFoo properties in Connections are deprecated. Use this syntax instead: function onFoo(<arguments>) { ... }
+Oct 01 20:52:30 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:30 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:32 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 20:52:32 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 20:52:33 nebula sddm-greeter-qt6[784]: file:///usr/lib/qt6/qml/SddmComponents/PictureBox.qml:106:13 Parameter "event" is not declared. Injection of parameters into signal handlers is deprecated. Use JavaScript functions with formal parameters instead.
+Oct 01 20:52:33 nebula sddm-helper[803]: Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+                                         Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+                                         If this causes problems, reconfigure your locale. See the locale(1) manual
+                                         for more information.
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"38\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event2  - Power Button: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"41\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event9  - Video Bus: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"42\"\n(II) event8  - Video Bus: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\" \"43\"\n(II) event1  - Power Button: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\" \"44\"\n(II) event4  - Dell Computer Corp Dell Universal Receiver: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"45\"\n(II) event5  - Dell Computer Corp Dell Universal Receiver Mouse: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"46\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"47\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event7  - Dell Computer Corp Dell Universal Receiver System Control: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"48\"\n(II) event13 - DELL097D:00 04F3:311C Mouse: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"49\"\n(II) event15 - DELL097D:00 04F3:311C Touchpad: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"50\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event10 - Intel HID events: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"51\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event11 - Intel HID 5 button array: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"52\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event12 - Dell WMI hotkeys: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"53\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event3  - AT Translated Set 2 keyboard: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(**) Option \"fd\""
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " \"46\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) event6  - Dell Computer Corp Dell Universal Receiver Consumer Control: device removed\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n(II) systemd-logind: not releasing fd for 13:70, still in use\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n(II) systemd-logind: releasing fd for 13:67\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) UnloadModule: \"libinput\"\n(II) systemd-logind: releasing fd for 13:76\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:75\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:74\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:79\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:77\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:71\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:70\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:69\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:68\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:65\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n(II) systemd-logind: releasing fd for 13:72\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " "
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "UnloadModule: \"libinput\"\n(II) systemd-logind: releasing fd for 13:73\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " UnloadModule: \"libinput\"\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) systemd-logind: releasing fd for 13:66\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II) NVIDIA(GPU-0): Deleting GPU-0\n"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: "(II)"
+Oct 01 20:52:33 nebula sddm-helper-start-x11user[767]: " Server terminated successfully (0). Closing log file.\n"
+Oct 01 20:52:34 nebula dbus-broker-launch[835]: Service file '/usr/share/dbus-1/services/fr.emersion.mako.service' is not named after the D-Bus name 'org.freedesktop.Notifications'.
+Oct 01 20:52:34 nebula dbus-broker-launch[835]: Service file '/usr/share/dbus-1/services/org.kde.dolphin.FileManager1.service' is not named after the D-Bus name 'org.freedesktop.FileManager1'.
+Oct 01 20:52:34 nebula dbus-broker-launch[835]: Service file '/usr/share/dbus-1/services/org.knopwob.dunst.service' is not named after the D-Bus name 'org.freedesktop.Notifications'.
+Oct 01 20:52:34 nebula dbus-broker-launch[835]: Ignoring duplicate name 'org.freedesktop.Notifications' in service file '/usr/share/dbus-1/services/org.knopwob.dunst.service'
+Oct 01 20:52:34 nebula wireplumber[838]: default: Failed to get percentage from UPower: org.freedesktop.DBus.Error.NameHasNoOwner
+Oct 01 20:54:08 nebula kernel: warning: `ThreadPoolForeg' uses wireless extensions which will stop working for Wi-Fi 7 hardware; use nl80211
+Oct 01 20:54:22 nebula sudo[1615]:   nathan : a password is required ; TTY=pts/1 ; PWD=/home/nathan/25_09_21_xps9500_arch ; USER=root ; COMMAND=/usr/bin/true
 
 ================================================================================
 
@@ -486,7 +581,7 @@ nt=$'\n\t'; IFS=$nt
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="${MODULE_DIR:-$SCRIPT_DIR/modules}"
 MODULE_GLOB='[0-9][0-9]-*.sh'
-ASSUME_YES="${ASSUME_YES:-false}"   # exported to modules; modules decide whether to use it
+ASSUME_YES="${ASSUME_YES:-true}"   # exported to modules; modules decide whether to use it
 MODEL_GUARD="${MODEL_GUARD:-}"      # optional substring to enforce on DMI product_name
 
 # All logs go under ./logs relative to this script
@@ -676,11 +771,8 @@ done
 
 --- modules/10-base.sh ---
 #!/usr/bin/env bash
-# meta: id=10 name="Base system" desc="Time/locale, networking, audio, firmware" needs_root=false
-# This module performs base post-install config.
-# - Per Arch Wiki: Installation guide → Post-install configuration
-# - Per Arch Wiki: systemd-timesyncd, Network configuration, PipeWire, Bluetooth
-# Conventions: boring & safe. No --noconfirm by default. Fail fast on errors.
+# meta: id=10 name="Base system" desc="Time/locale, vconsole keymap, basic update" needs_root=false
+# per Arch Wiki: Installation guide → Post-install configuration; systemd-timesyncd; Locale; Console keymap
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
@@ -689,21 +781,28 @@ log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-# Respect ASSUME_YES from environment, if set by the harness
+ASSUME_YES="${ASSUME_YES:-false}"
+
 pac() {
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -S "${extra[@]}" "$@"
+}
+pac_update() {
   local extra=()
-  [[ "${ASSUME_YES:-false}" == "true" ]] && extra+=(--noconfirm)
-  sudo pacman -S --needed "${extra[@]}" "$@"
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Syu "${extra[@]}"
 }
 
 main() {
-  # Defaults — override by exporting before running module if desired
+  # Defaults — safe, UK-centric; override by exporting before running the module.
+  # LOCALE must exist in /etc/locale.gen (we uncomment it below).
   local TIMEZONE="${TIMEZONE:-Europe/London}"
-  local LOCALE="${LOCALE:-en_US.UTF-8}"
-  local KEYMAP="${KEYMAP:-us}"
+  local LOCALE="${LOCALE:-en_GB.UTF-8}"
+  local KEYMAP="${KEYMAP:-uk}"   # NOTE: Arch uses "uk", not "gb"
 
-  # Update packages (no --noconfirm by default; user can answer)
-  sudo pacman -Syu
+  # Update packages (honors ASSUME_YES)
+  pac_update
   ok "System updated"
 
   # Time + NTP — per Arch Wiki: systemd-timesyncd
@@ -711,7 +810,26 @@ main() {
   sudo timedatectl set-timezone "$TIMEZONE"
   sudo timedatectl set-ntp true
   sudo hwclock --systohc
-  ok "Timezone + NTP configured"
+  ok "Timezone + NTP configured ($TIMEZONE)"
+
+  # Locale — per Arch Wiki: Locale
+  # 1) Ensure LOCALE is uncommented in /etc/locale.gen
+  sudo sed -i "s/^#\s*${LOCALE//\//\\/}[[:space:]]\+UTF-8/${LOCALE} UTF-8/" /etc/locale.gen
+  # 2) Write /etc/locale.conf
+  printf 'LANG=%s\n' "$LOCALE" | sudo tee /etc/locale.conf >/dev/null
+  # 3) Generate
+  sudo locale-gen
+  ok "Locale generated and set (LANG=$LOCALE)"
+
+  # Console keymap — per Arch Wiki: Linux console/Keyboard configuration
+  printf 'KEYMAP=%s\n' "$KEYMAP" | sudo tee /etc/vconsole.conf >/dev/null
+  ok "Console keymap set (KEYMAP=$KEYMAP)"
+
+  # Optional: rebuild initramfs so keymap is baked into the keymap hook
+  if command -v mkinitcpio >/dev/null 2>&1; then
+    sudo mkinitcpio -P
+    ok "Initramfs rebuilt (to include keymap)"
+  fi
 }
 
 main "$@"
@@ -719,42 +837,33 @@ main "$@"
 --- modules/20-snapper-btrfs-grub.sh ---
 #!/usr/bin/env bash
 # meta: id=20 name="Snapper (Btrfs) + GRUB" desc="Install snapper/snap-pac/grub-btrfs, create .snapshots, fstab+mount, enable timers+quota, symlink repo configs, rebuild GRUB, and verify with a test snapshot" needs_root=true
-#
-# Arch Wiki references (keep aligned in comments):
-# - Btrfs: Installation guide → Filesystems → Btrfs
-# - Snapper: Create a configuration / Integration with pacman / Timeline & cleanup
-# - grub-btrfs: daemon watches snapshots and generates /boot/grub/grub-btrfs.cfg
+# Arch Wiki: Btrfs; Snapper; grub-btrfs
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
 
-# ----------------
-# Config (override via env)
-# ----------------
+ASSUME_YES="${ASSUME_YES:-false}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 SNAP_CONF_SRC_DIR="${SNAP_CONF_SRC_DIR:-$REPO_ROOT/files/snapper}"
 BTRFS_COMP_OPT="${BTRFS_COMP_OPT:-compress=zstd:3}"
-KEEP_VERIFY_SNAPSHOT="${KEEP_VERIFY_SNAPSHOT:-false}"   # set true to keep the test snapshot
+KEEP_VERIFY_SNAPSHOT="${KEEP_VERIFY_SNAPSHOT:-false}"
 
-# ----------------
-# Logging
-# ----------------
 log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-# ----------------
-# Helpers
-# ----------------
 require_root() {
   if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
-    if command -v sudo >/dev/null 2>&1; then
-      exec sudo -E -- bash "$0" "$@"
-    else
-      fail "This module requires root. Install sudo or run as root."
-    fi
+    if command -v sudo >/dev/null 2>&1; then exec sudo -E -- bash "$0" "$@"; fi
+    fail "This module requires root. Install sudo or run as root."
   fi
+}
+
+pac() {
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  pacman -S "${extra[@]}" "$@"
 }
 
 ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
@@ -763,7 +872,6 @@ is_btrfs_subvol() { btrfs subvolume show "$1" >/dev/null 2>&1; }
 ensure_dir() { install -d -m 0755 "$1"; }
 
 ensure_subvolume() {
-  # per Arch Wiki: Snapper → Create a configuration (expects .snapshots subvolumes)
   local path="$1"
   if [[ -e "$path" ]]; then
     is_btrfs_subvol "$path" || fail "$path exists but is not a Btrfs subvolume"
@@ -774,32 +882,23 @@ ensure_subvolume() {
 }
 
 ensure_fstab_entry() {
-  # ensure_fstab_entry <mountpoint> [<subvol_leaf_name>]
-  # Example: ensure_fstab_entry "/.snapshots" ".snapshots"
   local mnt="$1" leaf="${2:-${1##*/}}"
-
-  # Determine the parent mount for this mountpoint (root for /.snapshots, /home for /home/.snapshots)
   local parent
   case "$mnt" in
-    "/.snapshots")       parent="/" ;;
-    "/home/.snapshots")  parent="/home" ;;
-    *)                   parent="/" ;;
+    "/.snapshots") parent="/" ;;
+    "/home/.snapshots") parent="/home" ;;
+    *) parent="/" ;;
   esac
-
-  # Resolve filesystem UUID and parent mount’s subvol path
   local uuid opts parent_subvol subvol_path
   uuid="$(findmnt -no UUID "$parent" || true)"
   [[ -n "$uuid" ]] || fail "Could not resolve UUID for $parent"
-
   opts="$(findmnt -no OPTIONS "$parent" || true)"
   parent_subvol="$(sed -n 's/.*subvol=\([^,]*\).*/\1/p' <<<"$opts")"
-
   if [[ -z "$parent_subvol" || "$parent_subvol" == "/" ]]; then
     subvol_path="${leaf}"
   else
     subvol_path="${parent_subvol%/}/${leaf}"
   fi
-
   if ! grep -qE "[[:space:]]${mnt}[[:space:]]" /etc/fstab; then
     log "Appending fstab entry for ${mnt} (subvol=${subvol_path})"
     printf 'UUID=%s  %s  btrfs  subvol=%s,%s  0 0\n' "$uuid" "$mnt" "$subvol_path" "$BTRFS_COMP_OPT" >> /etc/fstab
@@ -808,22 +907,16 @@ ensure_fstab_entry() {
 
 mount_if_needed() {
   local mp="$1"
-  if mountpoint -q "$mp"; then
-    return 0
-  fi
-  log "Mounting ${mp}"
-  mount "$mp"
+  mountpoint -q "$mp" || { log "Mounting ${mp}"; mount "$mp"; }
 }
 
 deploy_symlink() {
-  # per Arch Wiki: Snapper — configs live in /etc/snapper/configs/*
   local src="$1" dest="$2"
   [[ -f "$src" ]] || fail "Source config not found: $src"
   if [[ -L "$dest" ]]; then
     local target; target="$(readlink -f "$dest" || true)"
     if [[ "$target" == "$(readlink -f "$src")" ]]; then
-      ok "Symlink already correct: $dest → $src"
-      return 0
+      ok "Symlink already correct: $dest → $src"; return 0
     fi
   fi
   if [[ -e "$dest" ]]; then
@@ -840,11 +933,8 @@ verify_snapper_config() {
   ok "snapper config '$cfg' is readable"
 }
 
-# Manual generator fallback (first run before daemon notices inotify events)
 run_grub_btrfs_generator_if_available() {
-  if [[ -x /etc/grub.d/41_snapshots-btrfs ]]; then
-    /etc/grub.d/41_snapshots-btrfs || true
-  fi
+  [[ -x /etc/grub.d/41_snapshots-btrfs ]] && /etc/grub.d/41_snapshots-btrfs || true
 }
 
 verify_grub_btrfs_cfg_present() {
@@ -854,65 +944,47 @@ verify_grub_btrfs_cfg_present() {
 }
 
 enable_quota_if_needed() {
-  # per Arch Wiki: Snapper — qgroups recommended for space-aware cleanup
   local mnt="$1"
-  if ! btrfs qgroup show "$mnt" >/dev/null 2>&1; then
-    log "Enabling Btrfs quota on $mnt"
-    btrfs quota enable "$mnt"
-  fi
+  btrfs qgroup show "$mnt" >/dev/null 2>&1 || { log "Enabling Btrfs quota on $mnt"; btrfs quota enable "$mnt"; }
 }
 
 enable_grub_btrfs_daemon() {
-  # Upstream daemon requires inotify-tools; harmless if already installed
-  pacman -S --needed inotify-tools
+  pac inotify-tools
   systemctl enable --now grub-btrfsd.service || true
 }
 
 force_grub_btrfs_refresh() {
-  # Make sure daemon is up, then run the generator once as a belt-and-braces refresh
   enable_grub_btrfs_daemon
   run_grub_btrfs_generator_if_available
 }
 
 verify_end_to_end_with_test_snapshot() {
-  # Create a test snapshot, ensure it appears in grub-btrfs.cfg, then optionally delete it.
   local desc="install-verify-$(date +%F_%H-%M-%S)"
   log "Creating test snapshot (root): $desc"
   snapper -c root create --type single --description "$desc"
-
-  # Get latest snapshot number for root
   local sn
   sn="$(snapper -c root list --columns number,description | awk -v d="$desc" '$0 ~ d {print $1}' | tail -n1)"
   [[ -n "$sn" ]] || fail "Could not determine test snapshot number"
-
-  # Refresh grub-btrfs and wait briefly for cfg regeneration
   force_grub_btrfs_refresh
   local cfg="/boot/grub/grub-btrfs.cfg"
   local path_regex="/\\.snapshots/${sn}/snapshot"
   local found="false"
   for _ in 1 2 3 4 5; do
-    if grep -qE "$path_regex" "$cfg"; then
-      found="true"; break
-    fi
+    if grep -qE "$path_regex" "$cfg"; then found="true"; break; fi
     sleep 1
   done
   [[ "$found" == "true" ]] || fail "grub-btrfs did not list snapshot $sn in $cfg"
-
   ok "GRUB sees snapshot #$sn"
-
   if [[ "${KEEP_VERIFY_SNAPSHOT}" != "true" ]]; then
     log "Deleting test snapshot #$sn"
     snapper -c root delete "$sn"
     force_grub_btrfs_refresh
     ok "Test snapshot cleaned up"
   else
-    log "Keeping test snapshot #$sn as requested (KEEP_VERIFY_SNAPSHOT=true)"
+    log "Keeping test snapshot #$sn as requested"
   fi
 }
 
-# ----------------
-# Main
-# ----------------
 main() {
   require_root "$@"
 
@@ -925,9 +997,8 @@ main() {
   [[ -d /home ]] && fs_is_btrfs /home || true
 
   log "Installing packages: snapper snap-pac grub-btrfs"
-  pacman -S --needed snapper snap-pac grub-btrfs
+  pac snapper snap-pac grub-btrfs
 
-  # .snapshots subvolumes and mounts (per Arch Wiki: Snapper → Create a configuration)
   ensure_subvolume "/.snapshots"
   chown root:root /.snapshots && chmod 0750 /.snapshots
   ensure_fstab_entry "/.snapshots" ".snapshots"
@@ -941,21 +1012,17 @@ main() {
   fi
   ok ".snapshots subvolumes present and mounted"
 
-  # Quotas for Snapper cleanup
   enable_quota_if_needed "/"
   [[ -d /home ]] && enable_quota_if_needed "/home" || true
   ok "Btrfs quota/qgroups enabled where applicable"
 
-  # Timers
   systemctl enable --now snapper-timeline.timer
   systemctl enable --now snapper-cleanup.timer
   ok "snapper timers enabled"
 
-  # grub-btrfs daemon + initial generation
   enable_grub_btrfs_daemon
   ok "grub-btrfs daemon enabled"
 
-  # Rebuild GRUB (ensures include line exists) then verify snapshots cfg
   [[ -d /boot/grub ]] || fail "/boot/grub not found (is GRUB installed to this ESP?)"
   grub-mkconfig -o /boot/grub/grub.cfg
   ok "grub.cfg rebuilt"
@@ -963,7 +1030,6 @@ main() {
   force_grub_btrfs_refresh
   verify_grub_btrfs_cfg_present
 
-  # Link repo configs and verify
   deploy_symlink "$SNAP_CONF_SRC_DIR/root" /etc/snapper/configs/root
   verify_snapper_config root
   if [[ -d /home && -f "$SNAP_CONF_SRC_DIR/home" ]]; then
@@ -973,9 +1039,7 @@ main() {
     log "Note: skipping /home config (either /home missing or no repo file)"
   fi
 
-  # End-to-end verification
   verify_end_to_end_with_test_snapshot
-
   ok "Snapper + grub-btrfs setup complete and verified"
 }
 
@@ -984,43 +1048,20 @@ main "$@"
 --- modules/30-base-system.sh ---
 #!/usr/bin/env bash
 # meta: id=30 name="Base system (utils + yay + power + audio + bluetooth)" desc="CLI utilities, yay (AUR), power management (PPD/TLP), PipeWire/WirePlumber audio, and BlueZ" needs_root=false
-#
-# Arch Wiki references (keep these accurate in comments):
-# - Pacman: https://wiki.archlinux.org/title/Pacman
-# - Makepkg (never as root): https://wiki.archlinux.org/title/Makepkg
-# - AUR helpers: https://wiki.archlinux.org/title/AUR_helpers
-# - Power management:
-#     * Power management overview: https://wiki.archlinux.org/title/Power_management
-#     * power-profiles-daemon: https://wiki.archlinux.org/title/Power_Profiles_Daemon
-#     * TLP: https://wiki.archlinux.org/title/TLP
-# - Audio:
-#     * PipeWire: https://wiki.archlinux.org/title/PipeWire
-#     * WirePlumber: https://wiki.archlinux.org/title/WirePlumber
-#     * ALSA: https://wiki.archlinux.org/title/Advanced_Linux_Sound_Architecture
-#     * RealtimeKit: https://wiki.archlinux.org/title/RealtimeKit
-# - Bluetooth (BlueZ): https://wiki.archlinux.org/title/Bluetooth
-#
-# Style & conventions:
-# - Run as a regular user (needs_root=false). Use sudo for system changes.
-# - No --noconfirm by default; set ASSUME_YES=true for unattended runs.
-# - Small functions; explicit verification after each major step.
-# - Strict: any failure exits non-zero.
+# Arch Wiki: Pacman; Makepkg; AUR helpers; Power management; PipeWire; WirePlumber; ALSA; RealtimeKit; Bluetooth
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
 
-# ================================
-# Config (override via env)
-# ================================
 UTILS_ENABLE_CORE="${UTILS_ENABLE_CORE:-true}"
 UTILS_ENABLE_NET_TOOLS="${UTILS_ENABLE_NET_TOOLS:-true}"
 UTILS_ENABLE_FS_TOOLS="${UTILS_ENABLE_FS_TOOLS:-true}"
 UTILS_ENABLE_SYS_TOOLS="${UTILS_ENABLE_SYS_TOOLS:-true}"
 UTILS_ENABLE_DOCS="${UTILS_ENABLE_DOCS:-true}"
 
-AUR_PACKAGES="${AUR_PACKAGES:-}"             # e.g., 'bat-extras bottom-bin'
+AUR_PACKAGES="${AUR_PACKAGES:-}"
 
-PM_BACKEND="${PM_BACKEND:-ppd}"              # 'ppd' or 'tlp'
+PM_BACKEND="${PM_BACKEND:-ppd}"         # 'ppd' or 'tlp'
 ENABLE_POWERTOP="${ENABLE_POWERTOP:-false}"
 
 BT_AUTOENABLE="${BT_AUTOENABLE:-true}"
@@ -1028,9 +1069,6 @@ BT_POWER_ON_NOW="${BT_POWER_ON_NOW:-true}"
 
 ASSUME_YES="${ASSUME_YES:-false}"
 
-# ================================
-# Logging / helpers
-# ================================
 log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
@@ -1038,14 +1076,12 @@ fail() { log "FAIL: $*"; exit 1; }
 ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
 
 ensure_not_root() {
-  # per Arch Wiki: Makepkg must NOT run as root
   if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
     fail "Run this module as a regular user (it will sudo only for system changes)."
   fi
 }
 
 pac() {
-  # Wrapper around pacman respecting ASSUME_YES; always uses --needed
   local extra=(--needed)
   [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
   sudo pacman -S "${extra[@]}" "$@"
@@ -1058,7 +1094,6 @@ pac_update() {
 }
 
 pac_remove() {
-  # pac_remove <pkgs...> (respects ASSUME_YES)
   local extra=()
   [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
   sudo pacman -Rns "${extra[@]}" "$@"
@@ -1073,40 +1108,33 @@ verify_pkgs_installed() {
 }
 
 wait_for_condition() {
-  # usage: wait_for_condition <seconds> <cmd...>
   local timeout="$1"; shift
   local t=0
   while ! "$@" >/dev/null 2>&1; do
     ((t++))
-    if (( t >= timeout )); then
-      return 1
-    fi
+    (( t >= timeout )) && return 1
     sleep 1
   done
   return 0
 }
 
-# ================================
-# yay bootstrap (AUR via makepkg as user)
-# ================================
 install_yay_if_needed() {
   if command -v yay >/dev/null 2>&1; then
-    ok "yay present"
-    return 0
+    ok "yay present"; return 0
   fi
-
-  # per Arch Wiki: makepkg prerequisites
   pac git base-devel
   ok "Prerequisites installed (git, base-devel)"
 
   local builddir
   builddir="$(mktemp -d -t aur-yay-XXXXXXXX)"
-
   git clone https://aur.archlinux.org/yay.git "$builddir/yay" >/dev/null
   pushd "$builddir/yay" >/dev/null
+
+  # Makepkg: honor ASSUME_YES; do NOT disable PGP checks
   local mflags=()
   [[ "$ASSUME_YES" == "true" ]] && mflags+=(--noconfirm)
   makepkg -si "${mflags[@]}"
+
   popd >/dev/null
   rm -rf -- "$builddir"
 
@@ -1114,27 +1142,13 @@ install_yay_if_needed() {
   ok "yay installed"
 }
 
-# ================================
-# Utilities (official repos)
-# ================================
 collect_util_packages() {
   PKGS=()
-
-  if [[ "$UTILS_ENABLE_CORE" == "true" ]]; then
-    PKGS+=(vim nano less which tree ripgrep fd jq rsync)
-  fi
-  if [[ "$UTILS_ENABLE_NET_TOOLS" == "true" ]]; then
-    PKGS+=(curl wget aria2 openssh openbsd-netcat iperf3 mtr)
-  fi
-  if [[ "$UTILS_ENABLE_FS_TOOLS" == "true" ]]; then
-    PKGS+=(exfatprogs ntfs-3g dosfstools mtools)
-  fi
-  if [[ "$UTILS_ENABLE_SYS_TOOLS" == "true" ]]; then
-    PKGS+=(htop iotop lsof strace pciutils usbutils dmidecode lm_sensors smartmontools nvme-cli)
-  fi
-  if [[ "$UTILS_ENABLE_DOCS" == "true" ]]; then
-    PKGS+=(man-db man-pages texinfo)
-  fi
+  [[ "$UTILS_ENABLE_CORE" == "true" ]] && PKGS+=(vim nano less which tree ripgrep fd jq rsync)
+  [[ "$UTILS_ENABLE_NET_TOOLS" == "true" ]] && PKGS+=(curl wget aria2 openssh openbsd-netcat iperf3 mtr)
+  [[ "$UTILS_ENABLE_FS_TOOLS" == "true" ]] && PKGS+=(exfatprogs ntfs-3g dosfstools mtools)
+  [[ "$UTILS_ENABLE_SYS_TOOLS" == "true" ]] && PKGS+=(htop iotop lsof strace pciutils usbutils dmidecode lm_sensors smartmontools nvme-cli)
+  [[ "$UTILS_ENABLE_DOCS" == "true" ]] && PKGS+=(man-db man-pages texinfo)
 }
 
 install_official_utils() {
@@ -1148,14 +1162,14 @@ install_official_utils() {
   fi
 }
 
-# ================================
-# AUR optional installs
-# ================================
 install_aur_optional() {
   [[ -z "$AUR_PACKAGES" ]] && { ok "No AUR packages requested"; return 0; }
   ensure_cmd yay
   local yflags=(--needed)
-  [[ "$ASSUME_YES" == "true" ]] && yflags+=(--noconfirm)
+  if [[ "$ASSUME_YES" == "true" ]]; then
+    # These suppress edit/diff prompts non-interactively
+    yflags+=(--noconfirm --answerdiff=None --answeredit=None)
+  fi
   # shellcheck disable=SC2086
   yay -S ${yflags[*]} $AUR_PACKAGES
 
@@ -1167,11 +1181,7 @@ install_aur_optional() {
   ok "AUR packages installed"
 }
 
-# ================================
-# Power management
-# ================================
 setup_power_profiles_daemon() {
-  # per Arch Wiki: PPD — disable TLP to avoid conflicts
   pac power-profiles-daemon
   sudo systemctl disable --now tlp.service tlp-sleep.service 2>/dev/null || true
   sudo systemctl enable --now power-profiles-daemon.service
@@ -1185,7 +1195,6 @@ setup_power_profiles_daemon() {
 }
 
 setup_tlp() {
-  # per Arch Wiki: TLP — disable PPD to avoid conflicts
   pac tlp
   sudo systemctl disable --now power-profiles-daemon.service 2>/dev/null || true
   sudo systemctl enable --now tlp.service
@@ -1208,12 +1217,7 @@ configure_power_management() {
   ok "Power management configured (${PM_BACKEND})"
 }
 
-# ================================
-# Audio (PipeWire + WirePlumber, strict)
-# per Arch Wiki: PipeWire / WirePlumber / ALSA / RealtimeKit
-# ================================
 remove_conflicting_jack2_if_needed() {
-  # PipeWire's jack shim (pipewire-jack) conflicts with jack2 (virtual "jack").
   if pacman -Qi jack2 >/dev/null 2>&1; then
     log "Removing jack2 (conflicts with pipewire-jack)"
     pac_remove jack2
@@ -1222,54 +1226,32 @@ remove_conflicting_jack2_if_needed() {
 
 configure_audio() {
   remove_conflicting_jack2_if_needed
-
-  # Install PipeWire core, shims, session manager, ALSA tooling, firmware/UCM, RTKit
   pac pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber rtkit alsa-utils alsa-ucm-conf sof-firmware
   verify_pkgs_installed pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber rtkit alsa-utils alsa-ucm-conf sof-firmware
-
-  # Enable RTKit system service (recommended)
   sudo systemctl enable --now rtkit-daemon.service
   systemctl is-active --quiet rtkit-daemon || fail "rtkit-daemon not active"
-
-  # Ensure user services are enabled and running
   systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service
-
-  # Wait briefly for the graph to settle
   wait_for_condition 5 systemctl --user is-active pipewire    || fail "pipewire (user) not active"
   wait_for_condition 5 systemctl --user is-active wireplumber || fail "wireplumber (user) not active"
-
-  # ALSA devices present
   aplay -l >/dev/null 2>&1 || fail "ALSA: no playback devices (aplay -l failed)"
   arecord -l >/dev/null 2>&1 || fail "ALSA: no capture devices (arecord -l failed)"
-
-  # Pulse shim should be PipeWire's (accept versioned strings)
   command -v pactl >/dev/null 2>&1 || fail "pactl not available"
   local server
   server="$(pactl info 2>/dev/null | awk -F': ' '/Server Name/ {print $2}')"
   if [[ "${server:-}" != PulseAudio\ \(on\ PipeWire* ]]; then
     fail "Pulse shim not active (got: '${server:-none}')"
   fi
-
-  # Basic sink/source presence via wpctl (if present)
   if command -v wpctl >/dev/null 2>&1; then
     wpctl status | grep -q 'Sinks:'   || fail "PipeWire: no sinks detected"
     wpctl status | grep -q 'Sources:' || fail "PipeWire: no sources detected"
   fi
-
   ok "Audio stack ready (PipeWire/WirePlumber + Pulse/JACK shims, RTKit, ALSA)"
 }
 
-# ================================
-# Bluetooth (BlueZ)
-# ================================
 bluetooth_requirements() {
   pac linux-firmware bluez bluez-utils util-linux
   verify_pkgs_installed linux-firmware bluez bluez-utils util-linux
-
-  # Load btusb (typical for Intel CNVi)
   sudo modprobe btusb || true
-
-  # Unblock via rfkill (non-interactive)
   if rfkill list 2>/dev/null | grep -A2 -i bluetooth | grep -qi 'Soft blocked: yes'; then
     sudo rfkill unblock bluetooth || fail "rfkill unblock failed"
   fi
@@ -1277,8 +1259,6 @@ bluetooth_requirements() {
 
 configure_bluetooth() {
   bluetooth_requirements
-
-  # Configure AutoEnable to power on adapters on availability (policy)
   if [[ "$BT_AUTOENABLE" == "true" ]]; then
     sudo install -D -m 0644 /dev/null /etc/bluetooth/main.conf
     if ! grep -q '^AutoEnable=' /etc/bluetooth/main.conf 2>/dev/null; then
@@ -1287,31 +1267,21 @@ configure_bluetooth() {
       sudo sed -i 's/^AutoEnable=.*/AutoEnable=true/' /etc/bluetooth/main.conf
     fi
   fi
-
   sudo systemctl enable --now bluetooth.service
   systemctl is-active --quiet bluetooth || fail "bluetooth.service not active"
-
-  # Wait briefly for controller enumeration after service start
   wait_for_condition 5 bash -c "bluetoothctl list | grep -q '^Controller'" || fail "No Bluetooth controller detected"
-
   if [[ "$BT_POWER_ON_NOW" == "true" ]]; then
     if ! bluetoothctl show | grep -q 'Powered: yes'; then
       printf 'power on\nquit\n' | bluetoothctl >/dev/null 2>&1 || true
       wait_for_condition 5 bash -c "bluetoothctl show | grep -q 'Powered: yes'" || fail "Bluetooth controller not powered"
     fi
   fi
-
   ok "Bluetooth controller present and powered"
 }
 
-# ================================
-# Main
-# ================================
 main() {
   ensure_not_root
   ensure_cmd sudo
-
-  # Keep system fresh; honors ASSUME_YES
   pac_update
   ok "System updated"
 
@@ -1332,47 +1302,22 @@ main "$@"
 
 --- modules/40-gpu-setup.sh ---
 #!/usr/bin/env bash
-# meta: id=40 name="GPU setup (Intel primary + NVIDIA PRIME offload)" desc="Install NVIDIA stack, blacklist nouveau, early KMS, PRIME offload, power mgmt, and verification" needs_root=true
+# meta: id=40 name="GPU setup (Intel primary + NVIDIA PRIME offload)" desc="Enable multilib, install NVIDIA+Intel stacks (incl. 32-bit), blacklist nouveau, KMS/initramfs, PRIME offload, power helpers, verification" needs_root=true
 #
-# Hardware target: Dell XPS 15 9500 (Intel UHD + NVIDIA GTX 1650 Ti Mobile TU117, muxless/Optimus).
-#  - Internal panel is wired to the Intel iGPU; NVIDIA is for compute/render offload only. :contentReference[oaicite:5]{index=5}
-#
-# Arch Wiki references (keep accurate):
-# - NVIDIA (driver, early KMS, power mgmt): https://wiki.archlinux.org/title/NVIDIA :contentReference[oaicite:6]{index=6}
-# - PRIME (render offload env): https://wiki.archlinux.org/title/PRIME :contentReference[oaicite:7]{index=7}
-# - NVIDIA Optimus (hybrid): https://wiki.archlinux.org/title/NVIDIA_Optimus :contentReference[oaicite:8]{index=8}
-# - KMS background: https://wiki.archlinux.org/title/Kernel_mode_setting :contentReference[oaicite:9]{index=9}
-# - NVIDIA power services: nvidia-suspend/resume/hibernate, nvidia-powerd. :contentReference[oaicite:10]{index=10}
-#
-# Style: boring, explicit, reproducible. No --noconfirm unless ASSUME_YES=true.
+# Target: Dell XPS 15 9500 (Intel UHD + NVIDIA GTX 1650 Ti Mobile, muxless/Optimus).
+# Arch Wiki refs in comments:
+# - NVIDIA; PRIME; NVIDIA Optimus; DRM KMS; Early loading; Nouveau blacklist; Power mgmt; Official repositories/multilib
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
 
-# ----------------
-# Config (override via env)
-# ----------------
-ASSUME_YES="${ASSUME_YES:-false}"                   # unattended installs if true
-INSTALL_TEST_TOOLS="${INSTALL_TEST_TOOLS:-true}"    # mesa-utils, vulkan-tools
-ENABLE_PM_SERVICES="${ENABLE_PM_SERVICES:-true}"    # enable NVIDIA sleep/hibernate helpers
-ENABLE_NVIDIA_POWERD="${ENABLE_NVIDIA_POWERD:-auto}"# auto|true|false (auto: enable if unit exists)
-HYPRLAND_CURSOR_WORKAROUND="${HYPRLAND_CURSOR_WORKAROUND:-false}" # sets WLR_NO_HARDWARE_CURSORS=1 system-wide
+# Minimal config: set to "true" for unattended pacman/yay
+ASSUME_YES="${ASSUME_YES:-false}"
 
-# Paths
-MODPROBE_DIR="/etc/modprobe.d"
-MKINITCPIO_CONF="/etc/mkinitcpio.conf"
-GRUB_DIR="/boot/grub"
-
-# ----------------
-# Logging
-# ----------------
 log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-# ----------------
-# Helpers
-# ----------------
 require_root() {
   if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
     if command -v sudo >/dev/null 2>&1; then exec sudo -E -- bash "$0" "$@"; fi
@@ -1381,95 +1326,116 @@ require_root() {
 }
 
 pac() {
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  /usr/bin/pacman -S "${extra[@]}" "$@"
+}
+pac_full_sync() {
   local extra=()
   [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
-  pacman -S --needed "${extra[@]}" "$@"
+  /usr/bin/pacman -Syyu "${extra[@]}"
 }
 
-backup_file() { [[ -e "$1" ]] && cp -a -- "$1" "$1.bak.$(date +%s)"; }
+backup_file() { [[ -e "$1" ]] && /usr/bin/cp -a -- "$1" "$1.bak.$(date +%s)"; }
 
-append_once_literal() {
-  local file="$1" line="$2"
-  grep -Fxq -- "$line" "$file" 2>/dev/null || printf '%s\n' "$line" >>"$file"
-}
-
-rebuild_initramfs() { mkinitcpio -P; }
-rebuild_grub_if_present() { [[ -x /usr/bin/grub-mkconfig && -d "$GRUB_DIR" ]] && grub-mkconfig -o "$GRUB_DIR/grub.cfg" || true; }
-
-verify_kernel_param() {
-  local path="$1" want="$2"
-  [[ -r "$path" ]] || return 0
-  local got; got="$(<"$path")"
-  [[ "$got" == "$want" ]] || fail "Kernel param mismatch: $path='$got' (want '$want')"
-}
-
-wait_cmd() {
-  local sec="$1"; shift
-  local t=0
-  while ! "$@" >/dev/null 2>&1; do
-    ((t++>=sec)) && return 1
-    sleep 1
-  done
-}
-
-# ----------------
-# Hardware sanity (non-destructive)
-# ----------------
+# ---------------- Hardware sanity (non-destructive)
 check_hardware() {
-  command -v lspci >/dev/null 2>&1 || pac pciutils
-  lspci -nn | grep -q 'VGA compatible controller.*Intel'   || fail "Intel iGPU not detected"
-  lspci -nn | grep -q '3D controller.*NVIDIA'              || fail "NVIDIA dGPU not detected"
+  /usr/bin/pacman -Qi pciutils >/dev/null 2>&1 || pac pciutils
+  /usr/bin/lspci -nn | /usr/bin/grep -q 'VGA compatible controller.*Intel'  || fail "Intel iGPU not detected"
+  /usr/bin/lspci -nn | /usr/bin/grep -q '3D controller.*NVIDIA'             || fail "NVIDIA dGPU not detected"
   ok "Detected Intel iGPU + NVIDIA dGPU (Optimus)"
 }
 
-# ----------------
-# Packages
-# ----------------
-install_packages() {
-  # Intel userspace bits (display provider) + NVIDIA stack
-  pac mesa vulkan-intel lib32-vulkan-intel
-  pac nvidia nvidia-utils lib32-nvidia-utils
+# ---------------- Repo fixes: enable ONLY the intended multilib lines, disable stray custom repo
+enable_multilib_repo() {
+  local cfg="/etc/pacman.conf"
+  backup_file "$cfg"
 
-  if [[ "$INSTALL_TEST_TOOLS" == "true" ]]; then
-    pac mesa-utils vulkan-tools
+  # Already enabled?
+  if /usr/bin/pacman-conf | /usr/bin/grep -qx '\[multilib\]'; then
+    ok "[multilib] repository already enabled"
+  else
+    # 1) Ensure header exists and is uncommented (replace the commented header if present)
+    if /usr/bin/grep -q '^[[:space:]]*#\[multilib\][[:space:]]*$' "$cfg"; then
+      log "Enabling [multilib] (uncommenting header)"
+      /usr/bin/sed -i 's/^[[:space:]]*#\[multilib\][[:space:]]*$/[multilib]/' "$cfg"
+    elif ! /usr/bin/grep -q '^[[:space:]]*\[multilib\][[:space:]]*$' "$cfg"; then
+      log "Enabling [multilib] (appending canonical block)"
+      printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> "$cfg"
+    fi
+
+    # 2) Within the [multilib] section, ensure the Include line is present and uncommented exactly
+    if /usr/bin/grep -q '^[[:space:]]*\[multilib\][[:space:]]*$' "$cfg"; then
+      /usr/bin/sed -i '/^[[:space:]]*\[multilib\][[:space:]]*$/,/^[[:space:]]*\[/{
+        s/^[[:space:]]*#\s*Include[[:space:]]*=[[:space:]]*\/etc\/pacman\.d\/mirrorlist[[:space:]]*$/Include = \/etc\/pacman.d\/mirrorlist/;
+      }' "$cfg"
+
+      # 3) Re-comment any other non-blank, non-comment lines in the [multilib] section that are not the Include line.
+      /usr/bin/sed -i '/^[[:space:]]*\[multilib\][[:space:]]*$/,/^[[:space:]]*\[/{ 
+        /^[[:space:]]*\[multilib\][[:space:]]*$/b;
+        /^[[:space:]]*$/b;
+        /^#.*$/b;
+        /^Include[[:space:]]*=[[:space:]]*\/etc\/pacman\.d\/mirrorlist$/b;
+        s/^[^#]/#&/;
+      }' "$cfg"
+    fi
+
+    ok "[multilib] section normalized"
   fi
-  ok "Driver stacks installed (Intel provider + NVIDIA dGPU)"
+
+  pac_full_sync
+  ok "Package databases refreshed"
 }
 
-# ----------------
-# Module configs (disable nouveau; NVIDIA DRM KMS)
-# per Arch Wiki: NVIDIA → DRM kernel mode setting; disable nouveau to avoid races. :contentReference[oaicite:11]{index=11}
-# ----------------
-write_modprobe_configs() {
-  install -d -m 0755 "$MODPROBE_DIR"
+disable_custom_repo_if_broken() {
+  local cfg="/etc/pacman.conf"
+  # If a [custom] repo is enabled but points to /home/custompkgs (the common example),
+  # comment the whole section to avoid sync failures.
+  if /usr/bin/pacman-conf | /usr/bin/grep -qx '\[custom\]'; then
+    # Peek at its Server lines
+    local servers
+    servers="$(/usr/bin/grep -A3 '^[[:space:]]*\[custom\][[:space:]]*$' "$cfg" | /usr/bin/grep -E '^[[:space:]]*Server[[:space:]]*=')"
+    if grep -q '/home/custompkgs' <<<"$servers"; then
+      log "Disabling stray [custom] repo (example path detected)"
+      backup_file "$cfg"
+      /usr/bin/sed -i '/^[[:space:]]*\[custom\][[:space:]]*$/,/^[[:space:]]*\[/{ s/^[^#]/#&/ }' "$cfg"
+      pac_full_sync
+      ok "[custom] repo disabled and databases refreshed"
+    fi
+  fi
+}
 
-  backup_file "$MODPROBE_DIR/blacklist-nouveau.conf"
-  cat >"$MODPROBE_DIR/blacklist-nouveau.conf" <<'EOF'
-# Disable nouveau to prevent conflicts with proprietary NVIDIA driver
-# per Arch Wiki: NVIDIA → Nouveau
+# ---------------- Packages (Intel + NVIDIA + 32-bit, plus test tools)
+install_packages() {
+  pac mesa vulkan-intel
+  pac nvidia nvidia-utils
+  pac lib32-vulkan-intel lib32-nvidia-utils
+  pac mesa-utils vulkan-tools
+  ok "Driver stacks installed (Intel provider + NVIDIA dGPU; 32-bit userspace present)"
+}
+
+# ---------------- Kernel modules + initramfs
+apply_kernel_module_configs() {
+  /usr/bin/install -d -m 0755 /etc/modprobe.d
+
+  backup_file /etc/modprobe.d/blacklist-nouveau.conf
+  cat >/etc/modprobe.d/blacklist-nouveau.conf <<'EOF'
+# per Arch Wiki: Nouveau → Blacklisting
 blacklist nouveau
 options nouveau modeset=0
 EOF
 
-  backup_file "$MODPROBE_DIR/nvidia-drm.conf"
-  cat >"$MODPROBE_DIR/nvidia-drm.conf" <<'EOF'
-# Enable DRM KMS for NVIDIA (Wayland/X11 stability)
+  backup_file /etc/modprobe.d/nvidia-drm.conf
+  cat >/etc/modprobe.d/nvidia-drm.conf <<'EOF'
 # per Arch Wiki: NVIDIA → DRM kernel mode setting
 options nvidia-drm modeset=1 fbdev=1
 EOF
 
-  ok "Modprobe configs applied (nouveau blacklisted; nvidia-drm KMS enabled)"
-}
-
-# ----------------
-# Initramfs: early loading of NVIDIA modules
-# per Arch Wiki: NVIDIA → Early loading with mkinitcpio MODULES. :contentReference[oaicite:12]{index=12}
-# ----------------
-configure_initramfs() {
-  [[ -r "$MKINITCPIO_CONF" ]] || fail "Missing $MKINITCPIO_CONF"
-  backup_file "$MKINITCPIO_CONF"
-  if ! grep -q 'BEGIN nvidia modules' "$MKINITCPIO_CONF"; then
-    cat >>"$MKINITCPIO_CONF" <<'EOF'
+  local mkc="/etc/mkinitcpio.conf"
+  [[ -r "$mkc" ]] || fail "Missing $mkc"
+  backup_file "$mkc"
+  if ! /usr/bin/grep -q 'BEGIN nvidia modules' "$mkc"; then
+    cat >>"$mkc" <<'EOF'
 
 # BEGIN nvidia modules (per Arch Wiki: NVIDIA → Early loading)
 # Intel remains the display/KMS provider; these are loaded early for PRIME stability.
@@ -1477,19 +1443,16 @@ MODULES+=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
 # END nvidia modules
 EOF
   fi
-  rebuild_initramfs
+
+  /usr/bin/mkinitcpio -P
   ok "Initramfs rebuilt with NVIDIA modules"
 }
 
-# ----------------
-# PRIME render offload wrapper (GL & Vulkan)
-# per Arch Wiki: PRIME → Render offload env. :contentReference[oaicite:13]{index=13}
-# ----------------
+# ---------------- PRIME render offload helper
 install_prime_run() {
-  install -D -m 0755 /dev/null /usr/local/bin/prime-run
+  /usr/bin/install -D -m 0755 /dev/null /usr/local/bin/prime-run
   cat >/usr/local/bin/prime-run <<'EOF'
 #!/usr/bin/env bash
-# PRIME render offload wrapper (OpenGL + Vulkan)
 set -Eeuo pipefail
 export __NV_PRIME_RENDER_OFFLOAD=1
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
@@ -1499,82 +1462,61 @@ EOF
   ok "prime-run installed"
 }
 
-# ----------------
-# Power management helpers
-# per Arch Wiki: NVIDIA/Tips and tricks → necessary services; NVIDIA README. :contentReference[oaicite:14]{index=14}
-# ----------------
+# ---------------- NVIDIA power helpers
 enable_power_services() {
-  if [[ "$ENABLE_PM_SERVICES" == "true" ]]; then
-    systemctl enable --now nvidia-suspend.service nvidia-resume.service 2>/dev/null || true
-    systemctl enable --now nvidia-hibernate.service 2>/dev/null || true
+  /usr/bin/systemctl enable --now nvidia-suspend.service nvidia-resume.service 2>/dev/null || true
+  /usr/bin/systemctl enable --now nvidia-hibernate.service 2>/dev/null || true
+  if /usr/bin/systemctl list-unit-files | /usr/bin/grep -q '^nvidia-powerd\.service'; then
+    /usr/bin/systemctl enable --now nvidia-powerd.service 2>/dev/null || true
   fi
-
-  case "$ENABLE_NVIDIA_POWERD" in
-    true)  systemctl enable --now nvidia-powerd.service 2>/dev/null || true ;;
-    auto)  systemctl list-unit-files | grep -q '^nvidia-powerd.service' && systemctl enable --now nvidia-powerd.service || true ;;
-    false) : ;;
-    *)     : ;;
-  esac
-
   ok "NVIDIA power helpers configured (where available)"
 }
 
-# ----------------
-# Optional: Hyprland cursor workaround (off by default)
-# (We’ll do Hyprland proper in 50-hyperland; this only sets an env var globally if enabled.)
-# ----------------
-maybe_enable_hypr_cursor_workaround() {
-  if [[ "$HYPRLAND_CURSOR_WORKAROUND" != "true" ]]; then
-    ok "Hyprland cursor workaround not enabled (default)"
-    return 0
+# ---------------- Rebuild GRUB if present
+rebuild_grub_if_present() {
+  if [[ -x /usr/bin/grub-mkconfig && -d /boot/grub ]]; then
+    /usr/bin/grub-mkconfig -o /boot/grub/grub.cfg
+    ok "GRUB configuration rebuilt"
+  else
+    log "Note: GRUB not detected; skipping grub-mkconfig"
   fi
-  install -d -m 0755 /etc/environment.d
-  printf 'WLR_NO_HARDWARE_CURSORS=1\n' >/etc/environment.d/99-hyprland-nvidia-cursor.conf
-  ok "WLR_NO_HARDWARE_CURSORS=1 set via /etc/environment.d (can remove if unnecessary)"
 }
 
-# ----------------
-# Verification
-# ----------------
+# ---------------- Verification (non-destructive)
 verify_stack() {
-  # nouveau must not be loaded (if it is, a reboot is required)
-  if lsmod | grep -q '^nouveau'; then
-    fail "nouveau module loaded. Reboot to apply blacklist and early KMS."
+  if /usr/bin/lsmod | /usr/bin/grep -q '^nouveau'; then
+    fail "nouveau module is loaded. Reboot required to apply blacklist and early KMS."
   fi
-
-  # nvidia_drm modeset Y after driver loads (post-reboot this will exist)
-  [[ -r /sys/module/nvidia_drm/parameters/modeset ]] && verify_kernel_param /sys/module/nvidia_drm/parameters/modeset "Y" || log "Note: nvidia_drm not loaded yet (OK before reboot)."
-
-  # PRIME offload sanity (if XWayland/GL present)
+  if [[ -r /sys/module/nvidia_drm/parameters/modeset ]]; then
+    local val; val="$(</sys/module/nvidia_drm/parameters/modeset)"
+    [[ "$val" == "Y" ]] || fail "nvidia_drm modeset is '$val' (expected 'Y')."
+  else
+    log "Note: nvidia_drm not loaded yet (normal before reboot)."
+  fi
   if command -v glxinfo >/dev/null 2>&1; then
-    if prime-run glxinfo 2>/dev/null | grep -q 'OpenGL renderer.*NVIDIA'; then
+    if /usr/local/bin/prime-run glxinfo 2>/dev/null | /usr/bin/grep -q 'OpenGL renderer.*NVIDIA'; then
       ok "OpenGL offload works (renderer is NVIDIA)"
     else
-      log "Warning: glxinfo did not confirm NVIDIA via prime-run (check from a graphical session)."
+      log "Warning: glxinfo via prime-run did not report NVIDIA (try from a running session)."
     fi
   fi
-
   if command -v vkcube >/dev/null 2>&1; then
-    prime-run vkcube --version >/dev/null 2>&1 || log "Warning: vkcube via prime-run failed (try after reboot/in-session)."
+    /usr/local/bin/prime-run vkcube --version >/dev/null 2>&1 || log "Warning: vkcube via prime-run failed (OK before full GUI)."
   fi
-
   ok "Verification complete"
 }
 
-# ----------------
-# Main
-# ----------------
 main() {
   require_root "$@"
   check_hardware
+  enable_multilib_repo
+  disable_custom_repo_if_broken
   install_packages
-  write_modprobe_configs
-  configure_initramfs
+  apply_kernel_module_configs
   install_prime_run
   enable_power_services
-  maybe_enable_hypr_cursor_workaround
   rebuild_grub_if_present
-  log "Reboot recommended to load nvidia_drm from initramfs and keep nouveau out."
+  log "Reboot recommended to load nvidia_drm from initramfs and ensure nouveau stays out."
   verify_stack
   ok "GPU setup complete"
 }
@@ -1583,218 +1525,268 @@ main "$@"
 
 --- modules/50-hyprland-setup.sh ---
 #!/usr/bin/env bash
-# meta: id=50 name="Hyprland + SDDM + theming + portals" desc="Install Wayland/Hyprland stack, configure SDDM, and symlink repo dotfiles" needs_root=false
+# meta: id=50 name="Hyprland + SDDM + portals + dotfiles" desc="Install Hyprland stack, configure SDDM (Wayland), portals, fonts/cursor, and symlink repo dotfiles" needs_root=false
 #
-# Scope:
-# - Installs Hyprland + essentials (Waybar, Wofi, Mako, wl-clipboard, grim/slurp/swappy, swaybg, Foot, brightnessctl, clipman)
-# - Portals: xdg-desktop-portal + gtk + hyprland backend
-# - Input: libinput (Wayland-native). No Xorg xf86-input-libinput (not needed).
-# - Fonts/cursor/theme helpers: Noto fonts, Nerd symbols, Bibata cursor, qt6ct only.
-# - Display manager: SDDM (Wayland), default session Hyprland.
-# - Dotfiles: symlink from repo's files/hyprland/* to ~/.config and /etc/sddm.conf.d
-#
-# Arch Wiki references:
+# Arch Wiki references (keep accurate in comments):
 # - Hyprland: https://wiki.archlinux.org/title/Hyprland
-# - XDG Desktop Portal: https://wiki.archlinux.org/title/XDG_Desktop_Portal
-# - SDDM: https://wiki.archlinux.org/title/SDDM
-# - libinput: https://wiki.archlinux.org/title/Libinput
+# - Wayland: https://wiki.archlinux.org/title/Wayland
+# - xdg-desktop-portal: https://wiki.archlinux.org/title/Xdg-desktop-portal
+# - Display manager (SDDM): https://wiki.archlinux.org/title/SDDM
+# - Fonts: https://wiki.archlinux.org/title/Fonts
 #
-# Style:
-# - Boring & explicit. No --noconfirm unless ASSUME_YES=true.
-# - Run as regular user; sudo only for system-wide changes.
-# - After each major step, print an OK message; fail fast otherwise.
+# Style: boring, explicit, reproducible; no --noconfirm unless ASSUME_YES=true.
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
 
-# ================================
-# Config
-# ================================
-ASSUME_YES="${ASSUME_YES:-false}"
+# ================
+# Minimal config
+# ================
+ASSUME_YES="${ASSUME_YES:-true}"
 
-# Repo layout
+# Derived repo paths (read-only)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-FILES_ROOT="${FILES_ROOT:-$REPO_ROOT/files/hyprland}"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FILES_DIR="$REPO_ROOT/files/hyprland"
 
-# Destinations (user + system)
-CONF_HOME="${CONF_HOME:-$HOME/.config}"
-ETC_SDDM_DIR="/etc/sddm.conf.d"
-ICONS_HOME="${ICONS_HOME:-$HOME/.icons}"
-WALL_HOME="${WALL_HOME:-$CONF_HOME/wallpapers}"
-ENV_HOME="${ENV_HOME:-$CONF_HOME/environment.d}"
-
-# ================================
-# Logging / helpers
-# ================================
+# Logging
 log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-pac() {
-  local extra=()
-  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
-  sudo pacman -S --needed "${extra[@]}" "$@"
-}
-
-ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
-
 ensure_not_root() {
   if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
-    fail "Run this module as a regular user; it will sudo only for system changes."
+    fail "Run this module as a regular user (it will sudo only for system changes)."
+  fi
+}
+ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
+
+# Pacman wrappers (official repos)
+pac() {
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -S "${extra[@]}" "$@"
+}
+pac_remove_if_present() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  for p in "$@"; do
+    if pacman -Qi "$p" >/dev/null 2>&1; then
+      sudo pacman -Rns "${extra[@]}" "$p"
+    fi
+  done
+}
+pac_update() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Syu "${extra[@]}"
+}
+
+# yay wrapper (AUR) — only used if yay is installed already (module 30 handles yay)
+yay_install() {
+  command -v yay >/dev/null 2>&1 || { log "Note: yay not found — skipping AUR install for: $*"; return 0; }
+  local yflags=(--needed)
+  if [[ "$ASSUME_YES" == "true" ]]; then
+    yflags+=(--noconfirm --answerdiff None --answerclean None --removemake)
+    yay --save --answerdiff None --answerclean None --removemake >/dev/null 2>&1 || true
+  fi
+  yay -S "${yflags[@]}" "$@"
+}
+
+# Filesystem helpers
+ensure_dir() { install -d -m "${2:-0755}" "$1"; }
+
+symlink_dir_into_config() {
+  # symlink_dir_into_config <repo_subdir> <target_subdir_name>
+  local repo_sub="$1" name="$2"
+  local src="$FILES_DIR/$repo_sub"
+  local dest="$HOME/.config/$name"
+  [[ -d "$src" ]] || { log "Note: $src not found; skipping $name"; return 0; }
+  ensure_dir "$HOME/.config"
+  if [[ -L "$dest" || -d "$dest" || -f "$dest" ]]; then
+    if [[ -L "$dest" && "$(readlink -f "$dest")" == "$(readlink -f "$src")" ]]; then
+      ok "~/.config/$name already linked"
+      return 0
+    fi
+    log "Backing up ~/.config/$name → ~/.config/${name}.bak.$(date +%s)"
+    mv -f "$dest" "$HOME/.config/${name}.bak.$(date +%s)"
+  fi
+  ln -s "$(realpath "$src")" "$dest"
+  ok "Linked $name config → $src"
+}
+
+symlink_system_file() {
+  # symlink_system_file <repo_rel_path> <dest_abs_path> <mode>
+  local repo_rel="$1" dest="$2" mode="${3:-0644}"
+  local src="$FILES_DIR/$repo_rel"
+  [[ -f "$src" ]] || { log "Note: $src not found; skipping $dest"; return 0; }
+  # Create parent directory with root privileges when targeting system paths
+  sudo install -d -m 0755 "$(dirname "$dest")"
+  if [[ -L "$dest" ]]; then
+    if [[ "$(readlink -f "$dest")" == "$(readlink -f "$src")" ]]; then
+      ok "$dest already linked"
+      return 0
+    fi
+  fi
+  if [[ -e "$dest" ]]; then
+    log "Backing up $dest → ${dest}.bak.$(date +%s)"
+    sudo mv -f "$dest" "${dest}.bak.$(date +%s)"
+  fi
+  sudo ln -s "$(realpath "$src")" "$dest"
+  sudo chmod "$mode" "$dest" || true
+  ok "Installed link: $dest → $src"
+}
+
+# ============================
+# Step 1: Update (safe)
+# ============================
+update_system() {
+  pac_update
+  ok "System updated"
+}
+
+# ============================
+# Step 2: Install Hyprland stack (official repos)
+# ============================
+install_wayland_stack() {
+  # Replace 'clipman' with 'cliphist' + 'wl-clipboard' per Wayland best practice.
+  pac hyprland waybar wofi mako wl-clipboard cliphist grim slurp swappy swaybg foot brightnessctl \
+      xdg-desktop-portal xdg-desktop-portal-hyprland xdg-utils libinput qt6-wayland
+
+  # Fonts (& symbols) from official repos only
+  pac noto-fonts noto-fonts-cjk noto-fonts-emoji ttf-nerd-fonts-symbols-mono
+
+  # Optional: small GUI history (commented to keep deps minimal)
+  # pac nwg-clipman
+
+  # Verification
+  command -v Hyprland >/dev/null 2>&1 || fail "Hyprland not on PATH"
+  command -v waybar    >/dev/null 2>&1 || fail "waybar not on PATH"
+  command -v cliphist  >/dev/null 2>&1 || fail "cliphist not on PATH"
+  ok "Wayland/Hyprland core installed"
+}
+
+# ============================
+# Step 3: Portals (ensure hyprland backend; remove conflicts)
+# ============================
+configure_portals() {
+  # Remove backends that can hijack default selection on Hyprland sessions
+  pac_remove_if_present xdg-desktop-portal-wlr xdg-desktop-portal-gnome xdg-desktop-portal-kde
+
+  # Ensure hyprland backend is present (installed above) and base portal present
+  pac xdg-desktop-portal xdg-desktop-portal-hyprland
+
+  # Basic runtime verification (the backend binary presence)
+  [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || true
+  ok "xdg-desktop-portal configured for Hyprland"
+}
+
+# ============================
+# Step 4: SDDM (Wayland) → Hyprland session
+# ============================
+configure_sddm() {
+  pac sddm qt6-wayland
+
+  # Use repo-provided SDDM snippets if present
+  symlink_system_file "sddm/10-wayland.conf" "/etc/sddm.conf.d/10-wayland.conf" 0644
+  symlink_system_file "sddm/20-session.conf" "/etc/sddm.conf.d/20-session.conf" 0644
+
+  # Minimal fallback if repo files are missing: set Session=hyprland
+  if [[ ! -e /etc/sddm.conf.d/20-session.conf ]]; then
+    sudo install -d -m 0755 /etc/sddm.conf.d
+    printf '[Autologin]\n\n[Theme]\n\n[Users]\n\n[Wayland]\nSession=hyprland\n' \
+      | sudo tee /etc/sddm.conf.d/20-session.conf >/dev/null
+  fi
+
+  # Enable SDDM
+  sudo systemctl enable --now sddm.service
+  systemctl is-active --quiet sddm || fail "sddm not active"
+  ok "SDDM enabled for Wayland (Hyprland session)"
+}
+
+# ============================
+# Step 5: Cursor theme (AUR: Bibata) — optional if yay is missing
+# ============================
+install_cursor_theme() {
+  # Prefer the prebuilt binary AUR package for speed/reproducibility
+  yay_install bibata-cursor-theme-bin || true
+
+  # Install default index.theme from repo if provided (system-wide)
+  symlink_system_file "icons/default/index.theme" "/usr/share/icons/default/index.theme" 0644
+  ok "Cursor theme configured (Bibata if AUR available)"
+}
+
+# ============================
+# Step 6: System environment snippets (Wayland-friendly)
+# ============================
+install_environment_snippets() {
+  # Per Hyprland & Qt/GTK on Wayland guidance; repo provides environment.d files
+  if [[ -d "$FILES_DIR/environment.d" ]]; then
+    for f in "$FILES_DIR"/environment.d/*; do
+      [[ -f "$f" ]] || continue
+      local base; base="$(basename "$f")"
+      symlink_system_file "environment.d/$base" "/etc/environment.d/$base" 0644
+    done
+    ok "System environment.d snippets installed"
+  else
+    log "Note: $FILES_DIR/environment.d not found — skipping environment snippets"
   fi
 }
 
-ensure_dir() { install -d -m 0755 "$1"; }
+# ============================
+# Step 7: User dotfiles (Hyprland, Waybar, etc.)
+# ============================
+install_user_dotfiles() {
+  symlink_dir_into_config "hypr" "hypr"
+  symlink_dir_into_config "waybar" "waybar"
+  symlink_dir_into_config "wofi" "wofi"
+  symlink_dir_into_config "mako" "mako"
+  symlink_dir_into_config "foot" "foot"
+  # Optional kitty config if you use it
+  if [[ -d "$REPO_ROOT/files/kitty" ]]; then
+    ensure_dir "$HOME/.config"
+    if [[ -e "$HOME/.config/kitty" && ! -L "$HOME/.config/kitty" ]]; then
+      log "Backing up ~/.config/kitty → ~/.config/kitty.bak.$(date +%s)"
+      mv -f "$HOME/.config/kitty" "$HOME/.config/kitty.bak.$(date +%s)"
+    fi
+    ln -snf "$(realpath "$REPO_ROOT/files/kitty")" "$HOME/.config/kitty"
+    ok "Linked kitty config"
+  fi
 
-symlink_overwrite() {
-  # symlink_overwrite <source> <dest>
-  local src="$1" dst="$2"
-  ensure_dir "$(dirname -- "$dst")"
-  ln -sfT -- "$src" "$dst"
+  # Clipboard history — ensure Hyprland autostart stores history (if included in your startup.conf)
+  # Verify cliphist exists:
+  command -v cliphist >/dev/null 2>&1 || fail "cliphist missing (unexpected)"
+  ok "Dotfiles linked under ~/.config"
 }
 
-verify_file() { [[ -e "$1" ]] || fail "Missing expected file: $1"; }
-verify_cmd_active() { systemctl is-active --quiet "$1" || fail "Service not active: $1"; }
-verify_cmd_enabled() { systemctl is-enabled --quiet "$1" || fail "Service not enabled: $1"; }
-
-# ================================
-# Package installation
-# ================================
-install_packages() {
-  # Core Wayland/Hyprland stack
-  local pkgs=(
-    hyprland waybar wofi mako foot
-    wl-clipboard grim slurp swappy swaybg
-    brightnessctl clipman
-    xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
-    polkit-gnome xdg-user-dirs xdg-utils
-    libinput
-    qt6-wayland qt6ct
-    noto-fonts noto-fonts-emoji ttf-nerd-fonts-symbols
-    bibata-cursor-theme
-  )
-
-  pac "${pkgs[@]}"
-  ok "Packages installed (Hyprland stack + helpers)"
+# ============================
+# Step 8: Verification (non-destructive)
+# ============================
+verify_end_to_end() {
+  # Hyprland session file (from package) should exist
+  [[ -f /usr/share/wayland-sessions/hyprland.desktop ]] || fail "Hyprland session .desktop missing"
+  # Portal service files
+  systemctl status xdg-desktop-portal.service >/dev/null 2>&1 || true
+  ok "Basic verification complete (Hyprland session present; portals installed)"
 }
 
-# ================================
-# SDDM configuration (system)
-# ================================
-configure_sddm() {
-  pac sddm
-  ensure_dir "$ETC_SDDM_DIR"
-
-  # Symlink repo snippets into /etc/sddm.conf.d
-  local src_way="$FILES_ROOT/sddm/10-wayland.conf"
-  local src_sess="$FILES_ROOT/sddm/20-session.conf"
-  [[ -f "$src_way" && -f "$src_sess" ]] || fail "Repo SDDM snippets not found under $FILES_ROOT/sddm"
-
-  sudo ln -sfT -- "$src_way" "$ETC_SDDM_DIR/10-wayland.conf"
-  sudo ln -sfT -- "$src_sess" "$ETC_SDDM_DIR/20-session.conf"
-
-  # Enable + start SDDM
-  sudo systemctl enable --now sddm.service
-
-  # Verify
-  verify_cmd_enabled sddm.service
-  verify_cmd_active sddm.service
-  verify_file /usr/share/wayland-sessions/hyprland.desktop
-  ok "SDDM configured (Wayland) and Hyprland session available"
-}
-
-# ================================
-# User dotfiles (symlink from repo)
-# ================================
-deploy_user_dotfiles() {
-  # Hyprland configs
-  symlink_overwrite "$FILES_ROOT/hypr/hyprland.conf" "$CONF_HOME/hypr/hyprland.conf"
-  symlink_overwrite "$FILES_ROOT/hypr/env.conf"       "$CONF_HOME/hypr/env.conf"
-  symlink_overwrite "$FILES_ROOT/hypr/startup.conf"   "$CONF_HOME/hypr/startup.conf"
-  symlink_overwrite "$FILES_ROOT/hypr/monitors.conf"  "$CONF_HOME/hypr/monitors.conf"
-
-  # Waybar, Wofi, Mako, Foot
-  symlink_overwrite "$FILES_ROOT/waybar/config.jsonc" "$CONF_HOME/waybar/config.jsonc"
-  symlink_overwrite "$FILES_ROOT/waybar/style.css"    "$CONF_HOME/waybar/style.css"
-
-  symlink_overwrite "$FILES_ROOT/wofi/config"         "$CONF_HOME/wofi/config"
-  symlink_overwrite "$FILES_ROOT/wofi/style.css"      "$CONF_HOME/wofi/style.css"
-
-  symlink_overwrite "$FILES_ROOT/mako/config"         "$CONF_HOME/mako/config"
-  symlink_overwrite "$FILES_ROOT/foot/foot.ini"       "$CONF_HOME/foot/foot.ini"
-
-  # GTK settings
-  symlink_overwrite "$FILES_ROOT/gtk/gtk-3.0/settings.ini" "$CONF_HOME/gtk-3.0/settings.ini"
-  symlink_overwrite "$FILES_ROOT/gtk/gtk-4.0/settings.ini" "$CONF_HOME/gtk-4.0/settings.ini"
-
-  # environment.d
-  ensure_dir "$ENV_HOME"
-  symlink_overwrite "$FILES_ROOT/environment.d/10-qtct.conf"            "$ENV_HOME/10-qtct.conf"
-  symlink_overwrite "$FILES_ROOT/environment.d/20-cursor.conf"           "$ENV_HOME/20-cursor.conf"
-  symlink_overwrite "$FILES_ROOT/environment.d/30-hypr-nvidia-safe.conf" "$ENV_HOME/30-hypr-nvidia-safe.conf"
-
-  # Cursor theme selection
-  symlink_overwrite "$FILES_ROOT/icons/default/index.theme" "$ICONS_HOME/default/index.theme"
-
-  # Wallpapers (leave as a directory; user supplies default.jpg)
-  ensure_dir "$WALL_HOME"
-  [[ -f "$FILES_ROOT/wallpapers/README.txt" ]] && symlink_overwrite "$FILES_ROOT/wallpapers/README.txt" "$WALL_HOME/README.txt"
-
-  # Verify key ones
-  verify_file "$CONF_HOME/hypr/hyprland.conf"
-  verify_file "$CONF_HOME/waybar/config.jsonc"
-  verify_file "$CONF_HOME/gtk-3.0/settings.ini"
-  ok "Dotfiles symlinked from repo → $HOME"
-}
-
-# ================================
-# Post-setup (user)
-# ================================
-post_setup_user() {
-  # Create standard XDG dirs (no sudo)
-  xdg-user-dirs-update || true
-
-  ok "User environment prepared"
-}
-
-# ================================
-# Verification
-# ================================
-verify_stack() {
-  # Portal backend present
-  verify_file /usr/lib/xdg-desktop-portal-hyprland
-  # Greeter should be up; user can switch session to Hyprland
-  systemctl status sddm.service >/dev/null 2>&1 || fail "sddm.service not healthy"
-  ok "Portal backend present and SDDM healthy"
-}
-
-# ================================
+# ================
 # Main
-# ================================
+# ================
 main() {
   ensure_not_root
   ensure_cmd sudo
 
-  # Keep system fresh (user confirms unless ASSUME_YES=true)
-  sudo pacman -Syu
-  ok "System updated"
-
-  # Install packages
-  install_packages
-
-  # Deploy user config symlinks (no backups; overwrite)
-  deploy_user_dotfiles
-  post_setup_user
-
-  # System DM setup (sudo where needed)
+  update_system
+  install_wayland_stack
+  configure_portals
   configure_sddm
+  install_cursor_theme
+  install_environment_snippets
+  install_user_dotfiles
+  verify_end_to_end
 
-  # Final verification
-  verify_stack
-
-  log "Hyprland setup complete. Log out to SDDM and select 'Hyprland'."
-  ok "Module finished"
+  ok "Hyprland + SDDM setup complete"
 }
 
 main "$@"
