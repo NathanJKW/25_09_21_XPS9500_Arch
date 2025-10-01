@@ -18,6 +18,13 @@ nt=$'\n\t'; IFS=$nt
 # ================
 ASSUME_YES="${ASSUME_YES:-true}"
 
+# SDDM behavior — default to Wayland greeter (you can override at runtime)
+# Per Arch Wiki: SDDM → Wayland: use kwin_wayland or weston as the greeter compositor.
+SDDM_DISPLAY_SERVER="${SDDM_DISPLAY_SERVER:-wayland}"      # x11|wayland
+SDDM_WAYLAND_COMPOSITOR="${SDDM_WAYLAND_COMPOSITOR:-kwin}" # kwin|weston
+# NVIDIA-only fallback if greeter blanks: set to "QT_QUICK_BACKEND=software"
+SDDM_GREETER_ENV_EXTRA="${SDDM_GREETER_ENV_EXTRA:-}"
+
 # Derived repo paths (read-only)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -94,7 +101,6 @@ symlink_system_file() {
   local repo_rel="$1" dest="$2" mode="${3:-0644}"
   local src="$FILES_DIR/$repo_rel"
   [[ -f "$src" ]] || { log "Note: $src not found; skipping $dest"; return 0; }
-  # Create parent directory with root privileges when targeting system paths
   sudo install -d -m 0755 "$(dirname "$dest")"
   if [[ -L "$dest" ]]; then
     if [[ "$(readlink -f "$dest")" == "$(readlink -f "$src")" ]]; then
@@ -123,15 +129,12 @@ update_system() {
 # Step 2: Install Hyprland stack (official repos)
 # ============================
 install_wayland_stack() {
-  # Replace 'clipman' with 'cliphist' + 'wl-clipboard' per Wayland best practice.
+  # Per Arch Wiki: Hyprland, Wayland. Prefer wl-clipboard + cliphist for Wayland.
   pac hyprland waybar wofi mako wl-clipboard cliphist grim slurp swappy swaybg foot brightnessctl ttf-jetbrains-mono \
       xdg-desktop-portal xdg-desktop-portal-hyprland xdg-utils libinput qt6-wayland
 
-  # Fonts (& symbols) from official repos only
+  # Fonts (& symbols) from official repos only — per Arch Wiki: Fonts
   pac noto-fonts noto-fonts-cjk noto-fonts-emoji ttf-nerd-fonts-symbols-mono
-
-  # Optional: small GUI history (commented to keep deps minimal)
-  # pac nwg-clipman
 
   # Verification
   command -v Hyprland >/dev/null 2>&1 || fail "Hyprland not on PATH"
@@ -144,38 +147,99 @@ install_wayland_stack() {
 # Step 3: Portals (ensure hyprland backend; remove conflicts)
 # ============================
 configure_portals() {
-  # Remove backends that can hijack default selection on Hyprland sessions
+  # Per Arch Wiki: xdg-desktop-portal — avoid multiple backends selecting themselves.
   pac_remove_if_present xdg-desktop-portal-wlr xdg-desktop-portal-gnome xdg-desktop-portal-kde
-
-  # Ensure hyprland backend is present (installed above) and base portal present
   pac xdg-desktop-portal xdg-desktop-portal-hyprland
 
-  # Basic runtime verification (the backend binary presence)
-  [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || log "Note: portal backend binary not found at expected path; it will be socket-activated in-session"
+  [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || log "Note: portal backend path may differ; backend is socket-activated in-session."
   ok "xdg-desktop-portal configured for Hyprland"
 }
 
 # ============================
 # Step 4: SDDM (Wayland) → Hyprland session
 # ============================
-configure_sddm() {
-  pac sddm qt6-wayland
+ensure_system_cursor_default() {
+  # Fix "Could not setup default cursor" — per Arch Wiki: Cursors
+  if [[ -f "$FILES_DIR/icons/default/index.theme" ]]; then
+    symlink_system_file "icons/default/index.theme" "/usr/share/icons/default/index.theme" 0644
+  else
+    sudo install -d -m 0755 /usr/share/icons/default
+    printf '[Icon Theme]\nName=Default\nInherits=Bibata-Modern-Classic\n' | sudo tee /usr/share/icons/default/index.theme >/dev/null
+  fi
+  ok "System default cursor theme ensured"
+}
 
-  # Use repo-provided SDDM snippets if present
-  symlink_system_file "sddm/10-wayland.conf" "/etc/sddm.conf.d/10-wayland.conf" 0644
-  symlink_system_file "sddm/20-session.conf" "/etc/sddm.conf.d/20-session.conf" 0644
+write_sddm_wayland_conf() {
+  # Generate a known-good Wayland greeter config (do not rely on repo snippet).
+  sudo install -d -m 0755 /etc/sddm.conf.d
 
-  # Minimal fallback if repo files are missing: set Session=hyprland
-  if [[ ! -e /etc/sddm.conf.d/20-session.conf ]]; then
-    sudo install -d -m 0755 /etc/sddm.conf.d
-    printf '[Autologin]\n\n[Theme]\n\n[Users]\n\n[Wayland]\nSession=hyprland\n' \
-      | sudo tee /etc/sddm.conf.d/20-session.conf >/dev/null
+  # Neutralize any top-level /etc/sddm.conf DisplayServer override that forces X11.
+  if [[ -f /etc/sddm.conf ]] && grep -q '^[[:space:]]*DisplayServer[[:space:]]*=' /etc/sddm.conf; then
+    sudo sed -i 's/^[[:space:]]*DisplayServer[[:space:]]*=.*/DisplayServer=wayland/' /etc/sddm.conf
+    log "Normalized /etc/sddm.conf DisplayServer=wayland"
   fi
 
-  # Enable SDDM
+  # Remove any explicit X11 drop-in we might have shipped previously.
+  sudo rm -f /etc/sddm.conf.d/10-x11.conf
+
+  # Compose greeter environment (UTF-8 locale + layer-shell; optional extra var).
+  local env_line="LANG=en_GB.UTF-8,QT_WAYLAND_SHELL_INTEGRATION=layer-shell"
+  [[ -n "$SDDM_GREETER_ENV_EXTRA" ]] && env_line+=",${SDDM_GREETER_ENV_EXTRA}"
+
+  # Choose compositor command (kwin_wayland recommended; weston as alternative)
+  local comp_cmd
+  case "$SDDM_WAYLAND_COMPOSITOR" in
+    kwin)   comp_cmd='kwin_wayland --drm --no-lockscreen --no-global-shortcuts --locale1' ;;
+    weston) comp_cmd='weston --shell=fullscreen-shell.so' ;;
+    *)      fail "Unknown SDDM_WAYLAND_COMPOSITOR='$SDDM_WAYLAND_COMPOSITOR' (use kwin|weston)";;
+  esac
+
+  cat <<EOF | sudo tee /etc/sddm.conf.d/10-wayland.conf >/dev/null
+# per Arch Wiki: SDDM → Wayland greeter using kwin_wayland or weston
+[General]
+DisplayServer=wayland
+GreeterEnvironment=$env_line
+
+[Wayland]
+CompositorCommand=$comp_cmd
+EOF
+  ok "Wrote /etc/sddm.conf.d/10-wayland.conf (Wayland greeter)"
+}
+
+write_sddm_x11_conf() {
+  sudo install -d -m 0755 /etc/sddm.conf.d
+  sudo rm -f /etc/sddm.conf.d/10-wayland.conf
+  cat <<'EOF' | sudo tee /etc/sddm.conf.d/10-x11.conf >/dev/null
+[General]
+DisplayServer=x11
+EOF
+  ok "Wrote /etc/sddm.conf.d/10-x11.conf (X11 greeter)"
+}
+
+configure_sddm() {
+  # Base packages
+  pac sddm qt6-wayland
+
+  # Session chooser / default session snippet from repo (safe)
+  symlink_system_file "sddm/20-session.conf" "/etc/sddm.conf.d/20-session.conf" 0644
+
+  if [[ "$SDDM_DISPLAY_SERVER" == "wayland" ]]; then
+    # Wayland greeter requirements — per Arch Wiki: SDDM
+    pac layer-shell-qt
+    case "$SDDM_WAYLAND_COMPOSITOR" in
+      kwin)   pac kwin ;;
+      weston) pac weston ;;
+    esac
+    ensure_system_cursor_default
+    write_sddm_wayland_conf
+  else
+    write_sddm_x11_conf
+  fi
+
+  # Enable SDDM (starts the greeter now). If running from a graphical session, this may switch VTs.
   sudo systemctl enable --now sddm.service
   systemctl is-active --quiet sddm || fail "sddm not active"
-  ok "SDDM enabled for Wayland (Hyprland session)"
+  ok "SDDM configured (${SDDM_DISPLAY_SERVER})"
 }
 
 # ============================
@@ -185,7 +249,7 @@ install_cursor_theme() {
   # Prefer the prebuilt binary AUR package for speed/reproducibility
   yay_install bibata-cursor-theme-bin || true
 
-  # Install default index.theme from repo if provided (system-wide)
+  # Ensure system-wide default cursor exists (Wayland/XWayland apps)
   symlink_system_file "icons/default/index.theme" "/usr/share/icons/default/index.theme" 0644
   ok "Cursor theme configured (Bibata if AUR available)"
 }
@@ -216,7 +280,6 @@ install_user_dotfiles() {
   symlink_dir_into_config "wofi" "wofi"
   symlink_dir_into_config "mako" "mako"
   symlink_dir_into_config "foot" "foot"
-  # Optional kitty config if you use it
   if [[ -d "$REPO_ROOT/files/kitty" ]]; then
     ensure_dir "$HOME/.config"
     if [[ -e "$HOME/.config/kitty" && ! -L "$HOME/.config/kitty" ]]; then
@@ -226,9 +289,6 @@ install_user_dotfiles() {
     ln -snf "$(realpath "$REPO_ROOT/files/kitty")" "$HOME/.config/kitty"
     ok "Linked kitty config"
   fi
-
-  # Clipboard history — ensure Hyprland autostart stores history (if included in your startup.conf)
-  # Verify cliphist exists:
   command -v cliphist >/dev/null 2>&1 || fail "cliphist missing (unexpected)"
   ok "Dotfiles linked under ~/.config"
 }
@@ -237,9 +297,7 @@ install_user_dotfiles() {
 # Step 8: Verification (non-destructive)
 # ============================
 verify_end_to_end() {
-  # Hyprland session file (from package) should exist
   [[ -f /usr/share/wayland-sessions/hyprland.desktop ]] || fail "Hyprland session .desktop missing"
-  # Portal service files
   systemctl status xdg-desktop-portal.service >/dev/null 2>&1 || true
   ok "Basic verification complete (Hyprland session present; portals installed)"
 }
@@ -261,6 +319,7 @@ main() {
   verify_end_to_end
 
   ok "Hyprland + SDDM setup complete"
+  log "Tip: If the greeter blanks with NVIDIA, rerun with SDDM_GREETER_ENV_EXTRA=QT_QUICK_BACKEND=software"
 }
 
 main "$@"
