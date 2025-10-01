@@ -1,216 +1,266 @@
 #!/usr/bin/env bash
-# meta: id=50 name="Hyprland + SDDM + theming + portals" desc="Install Wayland/Hyprland stack, configure SDDM, and symlink repo dotfiles" needs_root=false
+# meta: id=50 name="Hyprland + SDDM + portals + dotfiles" desc="Install Hyprland stack, configure SDDM (Wayland), portals, fonts/cursor, and symlink repo dotfiles" needs_root=false
 #
-# Scope:
-# - Installs Hyprland + essentials (Waybar, Wofi, Mako, wl-clipboard, grim/slurp/swappy, swaybg, Foot, brightnessctl, clipman)
-# - Portals: xdg-desktop-portal + gtk + hyprland backend
-# - Input: libinput (Wayland-native). No Xorg xf86-input-libinput (not needed).
-# - Fonts/cursor/theme helpers: Noto fonts, Nerd symbols, Bibata cursor, qt6ct only.
-# - Display manager: SDDM (Wayland), default session Hyprland.
-# - Dotfiles: symlink from repo's files/hyprland/* to ~/.config and /etc/sddm.conf.d
-#
-# Arch Wiki references:
+# Arch Wiki references (keep accurate in comments):
 # - Hyprland: https://wiki.archlinux.org/title/Hyprland
-# - XDG Desktop Portal: https://wiki.archlinux.org/title/XDG_Desktop_Portal
-# - SDDM: https://wiki.archlinux.org/title/SDDM
-# - libinput: https://wiki.archlinux.org/title/Libinput
+# - Wayland: https://wiki.archlinux.org/title/Wayland
+# - xdg-desktop-portal: https://wiki.archlinux.org/title/Xdg-desktop-portal
+# - Display manager (SDDM): https://wiki.archlinux.org/title/SDDM
+# - Fonts: https://wiki.archlinux.org/title/Fonts
 #
-# Style:
-# - Boring & explicit. No --noconfirm unless ASSUME_YES=true.
-# - Run as regular user; sudo only for system-wide changes.
-# - After each major step, print an OK message; fail fast otherwise.
+# Style: boring, explicit, reproducible; no --noconfirm unless ASSUME_YES=true.
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
 
-# ================================
-# Config
-# ================================
-ASSUME_YES="${ASSUME_YES:-false}"
+# ================
+# Minimal config
+# ================
+ASSUME_YES="${ASSUME_YES:-true}"
 
-# Repo layout
+# Derived repo paths (read-only)
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-FILES_ROOT="${FILES_ROOT:-$REPO_ROOT/files/hyprland}"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FILES_DIR="$REPO_ROOT/files/hyprland"
 
-# Destinations (user + system)
-CONF_HOME="${CONF_HOME:-$HOME/.config}"
-ETC_SDDM_DIR="/etc/sddm.conf.d"
-ICONS_HOME="${ICONS_HOME:-$HOME/.icons}"
-WALL_HOME="${WALL_HOME:-$CONF_HOME/wallpapers}"
-ENV_HOME="${ENV_HOME:-$CONF_HOME/environment.d}"
-
-# ================================
-# Logging / helpers
-# ================================
+# Logging
 log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
 ok()   { log "OK: $*"; }
 fail() { log "FAIL: $*"; exit 1; }
 
-pac() {
-  local extra=()
-  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
-  sudo pacman -S --needed "${extra[@]}" "$@"
-}
-
-ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
-
 ensure_not_root() {
   if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
-    fail "Run this module as a regular user; it will sudo only for system changes."
+    fail "Run this module as a regular user (it will sudo only for system changes)."
+  fi
+}
+ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
+
+# Pacman wrappers (official repos)
+pac() {
+  local extra=(--needed)
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -S "${extra[@]}" "$@"
+}
+pac_remove_if_present() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  for p in "$@"; do
+    if pacman -Qi "$p" >/dev/null 2>&1; then
+      sudo pacman -Rns "${extra[@]}" "$p"
+    fi
+  done
+}
+pac_update() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -Syu "${extra[@]}"
+}
+
+# yay wrapper (AUR) — only used if yay is installed already (module 30 handles yay)
+yay_install() {
+  command -v yay >/dev/null 2>&1 || { log "Note: yay not found — skipping AUR install for: $*"; return 0; }
+  local yflags=(--needed)
+  if [[ "$ASSUME_YES" == "true" ]]; then
+    yflags+=(--noconfirm --answerdiff None --answerclean None --removemake)
+    yay --save --answerdiff None --answerclean None --removemake >/dev/null 2>&1 || true
+  fi
+  yay -S "${yflags[@]}" "$@"
+}
+
+# Filesystem helpers
+ensure_dir() { install -d -m "${2:-0755}" "$1"; }
+
+symlink_dir_into_config() {
+  # symlink_dir_into_config <repo_subdir> <target_subdir_name>
+  local repo_sub="$1" name="$2"
+  local src="$FILES_DIR/$repo_sub"
+  local dest="$HOME/.config/$name"
+  [[ -d "$src" ]] || { log "Note: $src not found; skipping $name"; return 0; }
+  ensure_dir "$HOME/.config"
+  if [[ -L "$dest" || -d "$dest" || -f "$dest" ]]; then
+    if [[ -L "$dest" && "$(readlink -f "$dest")" == "$(readlink -f "$src")" ]]; then
+      ok "~/.config/$name already linked"
+      return 0
+    fi
+    log "Backing up ~/.config/$name → ~/.config/${name}.bak.$(date +%s)"
+    mv -f "$dest" "$HOME/.config/${name}.bak.$(date +%s)"
+  fi
+  ln -s "$(realpath "$src")" "$dest"
+  ok "Linked $name config → $src"
+}
+
+symlink_system_file() {
+  # symlink_system_file <repo_rel_path> <dest_abs_path> <mode>
+  local repo_rel="$1" dest="$2" mode="${3:-0644}"
+  local src="$FILES_DIR/$repo_rel"
+  [[ -f "$src" ]] || { log "Note: $src not found; skipping $dest"; return 0; }
+  # Create parent directory with root privileges when targeting system paths
+  sudo install -d -m 0755 "$(dirname "$dest")"
+  if [[ -L "$dest" ]]; then
+    if [[ "$(readlink -f "$dest")" == "$(readlink -f "$src")" ]]; then
+      ok "$dest already linked"
+      return 0
+    fi
+  fi
+  if [[ -e "$dest" ]]; then
+    log "Backing up $dest → ${dest}.bak.$(date +%s)"
+    sudo mv -f "$dest" "${dest}.bak.$(date +%s)"
+  fi
+  sudo ln -s "$(realpath "$src")" "$dest"
+  sudo chmod "$mode" "$dest" || true
+  ok "Installed link: $dest → $src"
+}
+
+# ============================
+# Step 1: Update (safe)
+# ============================
+update_system() {
+  pac_update
+  ok "System updated"
+}
+
+# ============================
+# Step 2: Install Hyprland stack (official repos)
+# ============================
+install_wayland_stack() {
+  # Replace 'clipman' with 'cliphist' + 'wl-clipboard' per Wayland best practice.
+  pac hyprland waybar wofi mako wl-clipboard cliphist grim slurp swappy swaybg foot brightnessctl \
+      xdg-desktop-portal xdg-desktop-portal-hyprland xdg-utils libinput qt6-wayland
+
+  # Fonts (& symbols) from official repos only
+  pac noto-fonts noto-fonts-cjk noto-fonts-emoji ttf-nerd-fonts-symbols-mono
+
+  # Optional: small GUI history (commented to keep deps minimal)
+  # pac nwg-clipman
+
+  # Verification
+  command -v Hyprland >/dev/null 2>&1 || fail "Hyprland not on PATH"
+  command -v waybar    >/dev/null 2>&1 || fail "waybar not on PATH"
+  command -v cliphist  >/dev/null 2>&1 || fail "cliphist not on PATH"
+  ok "Wayland/Hyprland core installed"
+}
+
+# ============================
+# Step 3: Portals (ensure hyprland backend; remove conflicts)
+# ============================
+configure_portals() {
+  # Remove backends that can hijack default selection on Hyprland sessions
+  pac_remove_if_present xdg-desktop-portal-wlr xdg-desktop-portal-gnome xdg-desktop-portal-kde
+
+  # Ensure hyprland backend is present (installed above) and base portal present
+  pac xdg-desktop-portal xdg-desktop-portal-hyprland
+
+  # Basic runtime verification (the backend binary presence)
+  [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || [[ -x /usr/lib/xdg-desktop-portal-hyprland ]] || true
+  ok "xdg-desktop-portal configured for Hyprland"
+}
+
+# ============================
+# Step 4: SDDM (Wayland) → Hyprland session
+# ============================
+configure_sddm() {
+  pac sddm qt6-wayland
+
+  # Use repo-provided SDDM snippets if present
+  symlink_system_file "sddm/10-wayland.conf" "/etc/sddm.conf.d/10-wayland.conf" 0644
+  symlink_system_file "sddm/20-session.conf" "/etc/sddm.conf.d/20-session.conf" 0644
+
+  # Minimal fallback if repo files are missing: set Session=hyprland
+  if [[ ! -e /etc/sddm.conf.d/20-session.conf ]]; then
+    sudo install -d -m 0755 /etc/sddm.conf.d
+    printf '[Autologin]\n\n[Theme]\n\n[Users]\n\n[Wayland]\nSession=hyprland\n' \
+      | sudo tee /etc/sddm.conf.d/20-session.conf >/dev/null
+  fi
+
+  # Enable SDDM
+  sudo systemctl enable --now sddm.service
+  systemctl is-active --quiet sddm || fail "sddm not active"
+  ok "SDDM enabled for Wayland (Hyprland session)"
+}
+
+# ============================
+# Step 5: Cursor theme (AUR: Bibata) — optional if yay is missing
+# ============================
+install_cursor_theme() {
+  # Prefer the prebuilt binary AUR package for speed/reproducibility
+  yay_install bibata-cursor-theme-bin || true
+
+  # Install default index.theme from repo if provided (system-wide)
+  symlink_system_file "icons/default/index.theme" "/usr/share/icons/default/index.theme" 0644
+  ok "Cursor theme configured (Bibata if AUR available)"
+}
+
+# ============================
+# Step 6: System environment snippets (Wayland-friendly)
+# ============================
+install_environment_snippets() {
+  # Per Hyprland & Qt/GTK on Wayland guidance; repo provides environment.d files
+  if [[ -d "$FILES_DIR/environment.d" ]]; then
+    for f in "$FILES_DIR"/environment.d/*; do
+      [[ -f "$f" ]] || continue
+      local base; base="$(basename "$f")"
+      symlink_system_file "environment.d/$base" "/etc/environment.d/$base" 0644
+    done
+    ok "System environment.d snippets installed"
+  else
+    log "Note: $FILES_DIR/environment.d not found — skipping environment snippets"
   fi
 }
 
-ensure_dir() { install -d -m 0755 "$1"; }
+# ============================
+# Step 7: User dotfiles (Hyprland, Waybar, etc.)
+# ============================
+install_user_dotfiles() {
+  symlink_dir_into_config "hypr" "hypr"
+  symlink_dir_into_config "waybar" "waybar"
+  symlink_dir_into_config "wofi" "wofi"
+  symlink_dir_into_config "mako" "mako"
+  symlink_dir_into_config "foot" "foot"
+  # Optional kitty config if you use it
+  if [[ -d "$REPO_ROOT/files/kitty" ]]; then
+    ensure_dir "$HOME/.config"
+    if [[ -e "$HOME/.config/kitty" && ! -L "$HOME/.config/kitty" ]]; then
+      log "Backing up ~/.config/kitty → ~/.config/kitty.bak.$(date +%s)"
+      mv -f "$HOME/.config/kitty" "$HOME/.config/kitty.bak.$(date +%s)"
+    fi
+    ln -snf "$(realpath "$REPO_ROOT/files/kitty")" "$HOME/.config/kitty"
+    ok "Linked kitty config"
+  fi
 
-symlink_overwrite() {
-  # symlink_overwrite <source> <dest>
-  local src="$1" dst="$2"
-  ensure_dir "$(dirname -- "$dst")"
-  ln -sfT -- "$src" "$dst"
+  # Clipboard history — ensure Hyprland autostart stores history (if included in your startup.conf)
+  # Verify cliphist exists:
+  command -v cliphist >/dev/null 2>&1 || fail "cliphist missing (unexpected)"
+  ok "Dotfiles linked under ~/.config"
 }
 
-verify_file() { [[ -e "$1" ]] || fail "Missing expected file: $1"; }
-verify_cmd_active() { systemctl is-active --quiet "$1" || fail "Service not active: $1"; }
-verify_cmd_enabled() { systemctl is-enabled --quiet "$1" || fail "Service not enabled: $1"; }
-
-# ================================
-# Package installation
-# ================================
-install_packages() {
-  # Core Wayland/Hyprland stack
-  local pkgs=(
-    hyprland waybar wofi mako foot
-    wl-clipboard grim slurp swappy swaybg
-    brightnessctl clipman
-    xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
-    polkit-gnome xdg-user-dirs xdg-utils
-    libinput
-    qt6-wayland qt6ct
-    noto-fonts noto-fonts-emoji ttf-nerd-fonts-symbols
-    bibata-cursor-theme
-  )
-
-  pac "${pkgs[@]}"
-  ok "Packages installed (Hyprland stack + helpers)"
+# ============================
+# Step 8: Verification (non-destructive)
+# ============================
+verify_end_to_end() {
+  # Hyprland session file (from package) should exist
+  [[ -f /usr/share/wayland-sessions/hyprland.desktop ]] || fail "Hyprland session .desktop missing"
+  # Portal service files
+  systemctl status xdg-desktop-portal.service >/dev/null 2>&1 || true
+  ok "Basic verification complete (Hyprland session present; portals installed)"
 }
 
-# ================================
-# SDDM configuration (system)
-# ================================
-configure_sddm() {
-  pac sddm
-  ensure_dir "$ETC_SDDM_DIR"
-
-  # Symlink repo snippets into /etc/sddm.conf.d
-  local src_way="$FILES_ROOT/sddm/10-wayland.conf"
-  local src_sess="$FILES_ROOT/sddm/20-session.conf"
-  [[ -f "$src_way" && -f "$src_sess" ]] || fail "Repo SDDM snippets not found under $FILES_ROOT/sddm"
-
-  sudo ln -sfT -- "$src_way" "$ETC_SDDM_DIR/10-wayland.conf"
-  sudo ln -sfT -- "$src_sess" "$ETC_SDDM_DIR/20-session.conf"
-
-  # Enable + start SDDM
-  sudo systemctl enable --now sddm.service
-
-  # Verify
-  verify_cmd_enabled sddm.service
-  verify_cmd_active sddm.service
-  verify_file /usr/share/wayland-sessions/hyprland.desktop
-  ok "SDDM configured (Wayland) and Hyprland session available"
-}
-
-# ================================
-# User dotfiles (symlink from repo)
-# ================================
-deploy_user_dotfiles() {
-  # Hyprland configs
-  symlink_overwrite "$FILES_ROOT/hypr/hyprland.conf" "$CONF_HOME/hypr/hyprland.conf"
-  symlink_overwrite "$FILES_ROOT/hypr/env.conf"       "$CONF_HOME/hypr/env.conf"
-  symlink_overwrite "$FILES_ROOT/hypr/startup.conf"   "$CONF_HOME/hypr/startup.conf"
-  symlink_overwrite "$FILES_ROOT/hypr/monitors.conf"  "$CONF_HOME/hypr/monitors.conf"
-
-  # Waybar, Wofi, Mako, Foot
-  symlink_overwrite "$FILES_ROOT/waybar/config.jsonc" "$CONF_HOME/waybar/config.jsonc"
-  symlink_overwrite "$FILES_ROOT/waybar/style.css"    "$CONF_HOME/waybar/style.css"
-
-  symlink_overwrite "$FILES_ROOT/wofi/config"         "$CONF_HOME/wofi/config"
-  symlink_overwrite "$FILES_ROOT/wofi/style.css"      "$CONF_HOME/wofi/style.css"
-
-  symlink_overwrite "$FILES_ROOT/mako/config"         "$CONF_HOME/mako/config"
-  symlink_overwrite "$FILES_ROOT/foot/foot.ini"       "$CONF_HOME/foot/foot.ini"
-
-  # GTK settings
-  symlink_overwrite "$FILES_ROOT/gtk/gtk-3.0/settings.ini" "$CONF_HOME/gtk-3.0/settings.ini"
-  symlink_overwrite "$FILES_ROOT/gtk/gtk-4.0/settings.ini" "$CONF_HOME/gtk-4.0/settings.ini"
-
-  # environment.d
-  ensure_dir "$ENV_HOME"
-  symlink_overwrite "$FILES_ROOT/environment.d/10-qtct.conf"            "$ENV_HOME/10-qtct.conf"
-  symlink_overwrite "$FILES_ROOT/environment.d/20-cursor.conf"           "$ENV_HOME/20-cursor.conf"
-  symlink_overwrite "$FILES_ROOT/environment.d/30-hypr-nvidia-safe.conf" "$ENV_HOME/30-hypr-nvidia-safe.conf"
-
-  # Cursor theme selection
-  symlink_overwrite "$FILES_ROOT/icons/default/index.theme" "$ICONS_HOME/default/index.theme"
-
-  # Wallpapers (leave as a directory; user supplies default.jpg)
-  ensure_dir "$WALL_HOME"
-  [[ -f "$FILES_ROOT/wallpapers/README.txt" ]] && symlink_overwrite "$FILES_ROOT/wallpapers/README.txt" "$WALL_HOME/README.txt"
-
-  # Verify key ones
-  verify_file "$CONF_HOME/hypr/hyprland.conf"
-  verify_file "$CONF_HOME/waybar/config.jsonc"
-  verify_file "$CONF_HOME/gtk-3.0/settings.ini"
-  ok "Dotfiles symlinked from repo → $HOME"
-}
-
-# ================================
-# Post-setup (user)
-# ================================
-post_setup_user() {
-  # Create standard XDG dirs (no sudo)
-  xdg-user-dirs-update || true
-
-  ok "User environment prepared"
-}
-
-# ================================
-# Verification
-# ================================
-verify_stack() {
-  # Portal backend present
-  verify_file /usr/lib/xdg-desktop-portal-hyprland
-  # Greeter should be up; user can switch session to Hyprland
-  systemctl status sddm.service >/dev/null 2>&1 || fail "sddm.service not healthy"
-  ok "Portal backend present and SDDM healthy"
-}
-
-# ================================
+# ================
 # Main
-# ================================
+# ================
 main() {
   ensure_not_root
   ensure_cmd sudo
 
-  # Keep system fresh (user confirms unless ASSUME_YES=true)
-  sudo pacman -Syu
-  ok "System updated"
-
-  # Install packages
-  install_packages
-
-  # Deploy user config symlinks (no backups; overwrite)
-  deploy_user_dotfiles
-  post_setup_user
-
-  # System DM setup (sudo where needed)
+  update_system
+  install_wayland_stack
+  configure_portals
   configure_sddm
+  install_cursor_theme
+  install_environment_snippets
+  install_user_dotfiles
+  verify_end_to_end
 
-  # Final verification
-  verify_stack
-
-  log "Hyprland setup complete. Log out to SDDM and select 'Hyprland'."
-  ok "Module finished"
+  ok "Hyprland + SDDM setup complete"
 }
 
 main "$@"

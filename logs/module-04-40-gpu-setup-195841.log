@@ -1,4 +1,0 @@
-[2025-10-01 19:58:49] OK: Detected Intel iGPU + NVIDIA dGPU (Optimus)
-warning: mesa-1:25.2.3-2 is up to date -- skipping
-warning: vulkan-intel-1:25.2.3-2 is up to date -- skipping
-error: target not found: lib32-vulkan-intel

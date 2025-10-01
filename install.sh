@@ -10,7 +10,7 @@ nt=$'\n\t'; IFS=$nt
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="${MODULE_DIR:-$SCRIPT_DIR/modules}"
 MODULE_GLOB='[0-9][0-9]-*.sh'
-ASSUME_YES="${ASSUME_YES:-false}"   # exported to modules; modules decide whether to use it
+ASSUME_YES="${ASSUME_YES:-true}"   # exported to modules; modules decide whether to use it
 MODEL_GUARD="${MODEL_GUARD:-}"      # optional substring to enforce on DMI product_name
 
 # All logs go under ./logs relative to this script
