@@ -1,0 +1,6 @@
+/* Dark, no external theme */
+* { border: none; border-radius: 0; font-family: JetBrains Mono, monospace; font-size: 12pt; min-height: 0; }
+window { background: #1e1e2e; color: #cdd6f4; }
+#workspaces button { padding: 0 8px; color: #a6adc8; }
+#workspaces button.active { color: #cdd6f4; border-bottom: 2px solid #89b4fa; }
+#clock, #battery, #network, #pulseaudio { padding: 0 10px; }

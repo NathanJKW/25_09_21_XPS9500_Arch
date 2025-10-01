@@ -54,7 +54,7 @@ Operating System: Arch Linux
 Hardware Version: A00
 Firmware Version: 1.39.0
    Firmware Date: Tue 2025-08-05
-    Firmware Age: 1month 3w 5d
+    Firmware Age: 1month 3w 6d
 
 CPU:
 Architecture:                            x86_64
@@ -105,7 +105,7 @@ Vulnerability Vmscape:                   Mitigation; IBPB before exit to userspa
 
 Memory:
                total        used        free      shared  buff/cache   available
-Mem:            31Gi       4.9Gi        21Gi       1.6Gi       5.8Gi        26Gi
+Mem:            31Gi       4.0Gi        23Gi       1.5Gi       5.6Gi        27Gi
 Swap:          4.0Gi          0B       4.0Gi
 
 Block Devices:
@@ -186,6 +186,10 @@ Sep 29 20:19:21 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
 Sep 29 20:19:21 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
 Sep 30 18:56:16 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
 Sep 30 18:56:16 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
+Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
+Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
 
 journalctl -p warning -b (this boot):
 Sep 29 20:19:16 nebula kernel: x86/cpu: SGX disabled or unsupported by BIOS.
@@ -244,6 +248,11 @@ Sep 30 21:32:13 nebula systemd-resolved[408]: Using degraded feature set TCP ins
 Sep 30 21:32:34 nebula systemd-resolved[408]: Using degraded feature set UDP instead of TCP for DNS server 1.1.1.1#cloudflare-dns.com.
 Sep 30 21:32:39 nebula systemd-resolved[408]: Using degraded feature set UDP instead of TCP for DNS server 8.8.8.8#dns.google.
 Sep 30 21:32:44 nebula systemd-resolved[408]: Using degraded feature set UDP instead of TCP for DNS server 9.9.9.9#dns.quad9.net.
+Oct 01 18:08:45 nebula kernel: typec port1-partner: PM: parent port1 should not be sleeping
+Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: unknown error 0
+Oct 01 18:08:45 nebula kernel: ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-5)
+Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: elantech_send_cmd query 0x02 failed.
+Oct 01 18:08:45 nebula kernel: psmouse serio1: elantech: failed to query capabilities.
 
 ================================================================================
 
@@ -252,12 +261,33 @@ Sep 30 21:32:44 nebula systemd-resolved[408]: Using degraded feature set UDP ins
 ## File Tree
 
 <File Tree>
+files/hyprland/environment.d/10-qtct.conf
+files/hyprland/environment.d/20-cursor.conf
+files/hyprland/environment.d/30-hypr-nvidia-safe.conf
+files/hyprland/foot/foot.ini
+files/hyprland/gtk/gtk-3.0/settings.ini
+files/hyprland/gtk/gtk-4.0/settings.ini
+files/hyprland/hypr/env.conf
+files/hyprland/hypr/hyprland.conf
+files/hyprland/hypr/monitors.conf
+files/hyprland/hypr/startup.conf
+files/hyprland/icons/default/index.theme
+files/hyprland/mako/config
+files/hyprland/sddm/10-wayland.conf
+files/hyprland/sddm/20-session.conf
+files/hyprland/wallpapers/README.txt
+files/hyprland/waybar/config.jsonc
+files/hyprland/waybar/style.css
+files/hyprland/wofi/config
+files/hyprland/wofi/style.css
 files/snapper/home
 files/snapper/root
 install.sh
 modules/10-base.sh
 modules/20-snapper-btrfs-grub.sh
 modules/30-base-system.sh
+modules/40-gpu-setup.sh
+modules/50-hyprland-setup.sh
 
 ## Contents
 
@@ -728,38 +758,6 @@ main() {
 
 main "$@"
 
---- files/snapper/home ---
-SUBVOLUME="/home"
-FSTYPE="btrfs"
-SYNC_ACL="yes"
-TIMELINE_CREATE="yes"
-TIMELINE_CLEANUP="yes"
-NUMBER_CLEANUP="yes"
-NUMBER_MIN_AGE="1800"
-TIMELINE_LIMIT_HOURLY="10"
-TIMELINE_LIMIT_DAILY="7"
-TIMELINE_LIMIT_WEEKLY="4"
-TIMELINE_LIMIT_MONTHLY="3"
-TIMELINE_LIMIT_YEARLY="0"
-NUMBER_LIMIT="50"
-NUMBER_LIMIT_IMPORTANT="10"
-
---- files/snapper/root ---
-SUBVOLUME="/"
-FSTYPE="btrfs"
-SYNC_ACL="yes"
-TIMELINE_CREATE="yes"
-TIMELINE_CLEANUP="yes"
-NUMBER_CLEANUP="yes"
-NUMBER_MIN_AGE="1800"
-TIMELINE_LIMIT_HOURLY="10"
-TIMELINE_LIMIT_DAILY="7"
-TIMELINE_LIMIT_WEEKLY="4"
-TIMELINE_LIMIT_MONTHLY="3"
-TIMELINE_LIMIT_YEARLY="0"
-NUMBER_LIMIT="50"
-NUMBER_LIMIT_IMPORTANT="10"
-
 --- modules/30-base-system.sh ---
 #!/usr/bin/env bash
 # meta: id=30 name="Base system (utils + yay + power + audio + bluetooth)" desc="CLI utilities, yay (AUR), power management (PPD/TLP), PipeWire/WirePlumber audio, and BlueZ" needs_root=false
@@ -1085,4 +1083,759 @@ main() {
 }
 
 main "$@"
+
+--- modules/40-gpu-setup.sh ---
+#!/usr/bin/env bash
+# meta: id=40 name="GPU setup (Intel primary + NVIDIA PRIME offload)" desc="Install NVIDIA stack, blacklist nouveau, early KMS, PRIME offload, power mgmt, and verification" needs_root=true
+#
+# Hardware target: Dell XPS 15 9500 (Intel UHD + NVIDIA GTX 1650 Ti Mobile TU117, muxless/Optimus).
+#  - Internal panel is wired to the Intel iGPU; NVIDIA is for compute/render offload only. :contentReference[oaicite:5]{index=5}
+#
+# Arch Wiki references (keep accurate):
+# - NVIDIA (driver, early KMS, power mgmt): https://wiki.archlinux.org/title/NVIDIA :contentReference[oaicite:6]{index=6}
+# - PRIME (render offload env): https://wiki.archlinux.org/title/PRIME :contentReference[oaicite:7]{index=7}
+# - NVIDIA Optimus (hybrid): https://wiki.archlinux.org/title/NVIDIA_Optimus :contentReference[oaicite:8]{index=8}
+# - KMS background: https://wiki.archlinux.org/title/Kernel_mode_setting :contentReference[oaicite:9]{index=9}
+# - NVIDIA power services: nvidia-suspend/resume/hibernate, nvidia-powerd. :contentReference[oaicite:10]{index=10}
+#
+# Style: boring, explicit, reproducible. No --noconfirm unless ASSUME_YES=true.
+
+set -Eeuo pipefail
+nt=$'\n\t'; IFS=$nt
+
+# ----------------
+# Config (override via env)
+# ----------------
+ASSUME_YES="${ASSUME_YES:-false}"                   # unattended installs if true
+INSTALL_TEST_TOOLS="${INSTALL_TEST_TOOLS:-true}"    # mesa-utils, vulkan-tools
+ENABLE_PM_SERVICES="${ENABLE_PM_SERVICES:-true}"    # enable NVIDIA sleep/hibernate helpers
+ENABLE_NVIDIA_POWERD="${ENABLE_NVIDIA_POWERD:-auto}"# auto|true|false (auto: enable if unit exists)
+HYPRLAND_CURSOR_WORKAROUND="${HYPRLAND_CURSOR_WORKAROUND:-false}" # sets WLR_NO_HARDWARE_CURSORS=1 system-wide
+
+# Paths
+MODPROBE_DIR="/etc/modprobe.d"
+MKINITCPIO_CONF="/etc/mkinitcpio.conf"
+GRUB_DIR="/boot/grub"
+
+# ----------------
+# Logging
+# ----------------
+log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
+ok()   { log "OK: $*"; }
+fail() { log "FAIL: $*"; exit 1; }
+
+# ----------------
+# Helpers
+# ----------------
+require_root() {
+  if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then exec sudo -E -- bash "$0" "$@"; fi
+    fail "This module requires root."
+  fi
+}
+
+pac() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  pacman -S --needed "${extra[@]}" "$@"
+}
+
+backup_file() { [[ -e "$1" ]] && cp -a -- "$1" "$1.bak.$(date +%s)"; }
+
+append_once_literal() {
+  local file="$1" line="$2"
+  grep -Fxq -- "$line" "$file" 2>/dev/null || printf '%s\n' "$line" >>"$file"
+}
+
+rebuild_initramfs() { mkinitcpio -P; }
+rebuild_grub_if_present() { [[ -x /usr/bin/grub-mkconfig && -d "$GRUB_DIR" ]] && grub-mkconfig -o "$GRUB_DIR/grub.cfg" || true; }
+
+verify_kernel_param() {
+  local path="$1" want="$2"
+  [[ -r "$path" ]] || return 0
+  local got; got="$(<"$path")"
+  [[ "$got" == "$want" ]] || fail "Kernel param mismatch: $path='$got' (want '$want')"
+}
+
+wait_cmd() {
+  local sec="$1"; shift
+  local t=0
+  while ! "$@" >/dev/null 2>&1; do
+    ((t++>=sec)) && return 1
+    sleep 1
+  done
+}
+
+# ----------------
+# Hardware sanity (non-destructive)
+# ----------------
+check_hardware() {
+  command -v lspci >/dev/null 2>&1 || pac pciutils
+  lspci -nn | grep -q 'VGA compatible controller.*Intel'   || fail "Intel iGPU not detected"
+  lspci -nn | grep -q '3D controller.*NVIDIA'              || fail "NVIDIA dGPU not detected"
+  ok "Detected Intel iGPU + NVIDIA dGPU (Optimus)"
+}
+
+# ----------------
+# Packages
+# ----------------
+install_packages() {
+  # Intel userspace bits (display provider) + NVIDIA stack
+  pac mesa vulkan-intel lib32-vulkan-intel
+  pac nvidia nvidia-utils lib32-nvidia-utils
+
+  if [[ "$INSTALL_TEST_TOOLS" == "true" ]]; then
+    pac mesa-utils vulkan-tools
+  fi
+  ok "Driver stacks installed (Intel provider + NVIDIA dGPU)"
+}
+
+# ----------------
+# Module configs (disable nouveau; NVIDIA DRM KMS)
+# per Arch Wiki: NVIDIA → DRM kernel mode setting; disable nouveau to avoid races. :contentReference[oaicite:11]{index=11}
+# ----------------
+write_modprobe_configs() {
+  install -d -m 0755 "$MODPROBE_DIR"
+
+  backup_file "$MODPROBE_DIR/blacklist-nouveau.conf"
+  cat >"$MODPROBE_DIR/blacklist-nouveau.conf" <<'EOF'
+# Disable nouveau to prevent conflicts with proprietary NVIDIA driver
+# per Arch Wiki: NVIDIA → Nouveau
+blacklist nouveau
+options nouveau modeset=0
+EOF
+
+  backup_file "$MODPROBE_DIR/nvidia-drm.conf"
+  cat >"$MODPROBE_DIR/nvidia-drm.conf" <<'EOF'
+# Enable DRM KMS for NVIDIA (Wayland/X11 stability)
+# per Arch Wiki: NVIDIA → DRM kernel mode setting
+options nvidia-drm modeset=1 fbdev=1
+EOF
+
+  ok "Modprobe configs applied (nouveau blacklisted; nvidia-drm KMS enabled)"
+}
+
+# ----------------
+# Initramfs: early loading of NVIDIA modules
+# per Arch Wiki: NVIDIA → Early loading with mkinitcpio MODULES. :contentReference[oaicite:12]{index=12}
+# ----------------
+configure_initramfs() {
+  [[ -r "$MKINITCPIO_CONF" ]] || fail "Missing $MKINITCPIO_CONF"
+  backup_file "$MKINITCPIO_CONF"
+  if ! grep -q 'BEGIN nvidia modules' "$MKINITCPIO_CONF"; then
+    cat >>"$MKINITCPIO_CONF" <<'EOF'
+
+# BEGIN nvidia modules (per Arch Wiki: NVIDIA → Early loading)
+# Intel remains the display/KMS provider; these are loaded early for PRIME stability.
+MODULES+=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
+# END nvidia modules
+EOF
+  fi
+  rebuild_initramfs
+  ok "Initramfs rebuilt with NVIDIA modules"
+}
+
+# ----------------
+# PRIME render offload wrapper (GL & Vulkan)
+# per Arch Wiki: PRIME → Render offload env. :contentReference[oaicite:13]{index=13}
+# ----------------
+install_prime_run() {
+  install -D -m 0755 /dev/null /usr/local/bin/prime-run
+  cat >/usr/local/bin/prime-run <<'EOF'
+#!/usr/bin/env bash
+# PRIME render offload wrapper (OpenGL + Vulkan)
+set -Eeuo pipefail
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export __VK_LAYER_NV_optimus=NVIDIA_only
+exec "$@"
+EOF
+  ok "prime-run installed"
+}
+
+# ----------------
+# Power management helpers
+# per Arch Wiki: NVIDIA/Tips and tricks → necessary services; NVIDIA README. :contentReference[oaicite:14]{index=14}
+# ----------------
+enable_power_services() {
+  if [[ "$ENABLE_PM_SERVICES" == "true" ]]; then
+    systemctl enable --now nvidia-suspend.service nvidia-resume.service 2>/dev/null || true
+    systemctl enable --now nvidia-hibernate.service 2>/dev/null || true
+  fi
+
+  case "$ENABLE_NVIDIA_POWERD" in
+    true)  systemctl enable --now nvidia-powerd.service 2>/dev/null || true ;;
+    auto)  systemctl list-unit-files | grep -q '^nvidia-powerd.service' && systemctl enable --now nvidia-powerd.service || true ;;
+    false) : ;;
+    *)     : ;;
+  esac
+
+  ok "NVIDIA power helpers configured (where available)"
+}
+
+# ----------------
+# Optional: Hyprland cursor workaround (off by default)
+# (We’ll do Hyprland proper in 50-hyperland; this only sets an env var globally if enabled.)
+# ----------------
+maybe_enable_hypr_cursor_workaround() {
+  if [[ "$HYPRLAND_CURSOR_WORKAROUND" != "true" ]]; then
+    ok "Hyprland cursor workaround not enabled (default)"
+    return 0
+  fi
+  install -d -m 0755 /etc/environment.d
+  printf 'WLR_NO_HARDWARE_CURSORS=1\n' >/etc/environment.d/99-hyprland-nvidia-cursor.conf
+  ok "WLR_NO_HARDWARE_CURSORS=1 set via /etc/environment.d (can remove if unnecessary)"
+}
+
+# ----------------
+# Verification
+# ----------------
+verify_stack() {
+  # nouveau must not be loaded (if it is, a reboot is required)
+  if lsmod | grep -q '^nouveau'; then
+    fail "nouveau module loaded. Reboot to apply blacklist and early KMS."
+  fi
+
+  # nvidia_drm modeset Y after driver loads (post-reboot this will exist)
+  [[ -r /sys/module/nvidia_drm/parameters/modeset ]] && verify_kernel_param /sys/module/nvidia_drm/parameters/modeset "Y" || log "Note: nvidia_drm not loaded yet (OK before reboot)."
+
+  # PRIME offload sanity (if XWayland/GL present)
+  if command -v glxinfo >/dev/null 2>&1; then
+    if prime-run glxinfo 2>/dev/null | grep -q 'OpenGL renderer.*NVIDIA'; then
+      ok "OpenGL offload works (renderer is NVIDIA)"
+    else
+      log "Warning: glxinfo did not confirm NVIDIA via prime-run (check from a graphical session)."
+    fi
+  fi
+
+  if command -v vkcube >/dev/null 2>&1; then
+    prime-run vkcube --version >/dev/null 2>&1 || log "Warning: vkcube via prime-run failed (try after reboot/in-session)."
+  fi
+
+  ok "Verification complete"
+}
+
+# ----------------
+# Main
+# ----------------
+main() {
+  require_root "$@"
+  check_hardware
+  install_packages
+  write_modprobe_configs
+  configure_initramfs
+  install_prime_run
+  enable_power_services
+  maybe_enable_hypr_cursor_workaround
+  rebuild_grub_if_present
+  log "Reboot recommended to load nvidia_drm from initramfs and keep nouveau out."
+  verify_stack
+  ok "GPU setup complete"
+}
+
+main "$@"
+
+--- modules/50-hyprland-setup.sh ---
+#!/usr/bin/env bash
+# meta: id=50 name="Hyprland + SDDM + theming + portals" desc="Install Wayland/Hyprland stack, configure SDDM, and symlink repo dotfiles" needs_root=false
+#
+# Scope:
+# - Installs Hyprland + essentials (Waybar, Wofi, Mako, wl-clipboard, grim/slurp/swappy, swaybg, Foot, brightnessctl, clipman)
+# - Portals: xdg-desktop-portal + gtk + hyprland backend
+# - Input: libinput (Wayland-native). No Xorg xf86-input-libinput (not needed).
+# - Fonts/cursor/theme helpers: Noto fonts, Nerd symbols, Bibata cursor, qt6ct only.
+# - Display manager: SDDM (Wayland), default session Hyprland.
+# - Dotfiles: symlink from repo's files/hyprland/* to ~/.config and /etc/sddm.conf.d
+#
+# Arch Wiki references:
+# - Hyprland: https://wiki.archlinux.org/title/Hyprland
+# - XDG Desktop Portal: https://wiki.archlinux.org/title/XDG_Desktop_Portal
+# - SDDM: https://wiki.archlinux.org/title/SDDM
+# - libinput: https://wiki.archlinux.org/title/Libinput
+#
+# Style:
+# - Boring & explicit. No --noconfirm unless ASSUME_YES=true.
+# - Run as regular user; sudo only for system-wide changes.
+# - After each major step, print an OK message; fail fast otherwise.
+
+set -Eeuo pipefail
+nt=$'\n\t'; IFS=$nt
+
+# ================================
+# Config
+# ================================
+ASSUME_YES="${ASSUME_YES:-false}"
+
+# Repo layout
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+FILES_ROOT="${FILES_ROOT:-$REPO_ROOT/files/hyprland}"
+
+# Destinations (user + system)
+CONF_HOME="${CONF_HOME:-$HOME/.config}"
+ETC_SDDM_DIR="/etc/sddm.conf.d"
+ICONS_HOME="${ICONS_HOME:-$HOME/.icons}"
+WALL_HOME="${WALL_HOME:-$CONF_HOME/wallpapers}"
+ENV_HOME="${ENV_HOME:-$CONF_HOME/environment.d}"
+
+# ================================
+# Logging / helpers
+# ================================
+log()  { printf '[%(%F %T)T] %s\n' -1 "$*" >&2; }
+ok()   { log "OK: $*"; }
+fail() { log "FAIL: $*"; exit 1; }
+
+pac() {
+  local extra=()
+  [[ "$ASSUME_YES" == "true" ]] && extra+=(--noconfirm)
+  sudo pacman -S --needed "${extra[@]}" "$@"
+}
+
+ensure_cmd() { command -v "$1" >/dev/null 2>&1 || fail "Missing command: $1"; }
+
+ensure_not_root() {
+  if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+    fail "Run this module as a regular user; it will sudo only for system changes."
+  fi
+}
+
+ensure_dir() { install -d -m 0755 "$1"; }
+
+symlink_overwrite() {
+  # symlink_overwrite <source> <dest>
+  local src="$1" dst="$2"
+  ensure_dir "$(dirname -- "$dst")"
+  ln -sfT -- "$src" "$dst"
+}
+
+verify_file() { [[ -e "$1" ]] || fail "Missing expected file: $1"; }
+verify_cmd_active() { systemctl is-active --quiet "$1" || fail "Service not active: $1"; }
+verify_cmd_enabled() { systemctl is-enabled --quiet "$1" || fail "Service not enabled: $1"; }
+
+# ================================
+# Package installation
+# ================================
+install_packages() {
+  # Core Wayland/Hyprland stack
+  local pkgs=(
+    hyprland waybar wofi mako foot
+    wl-clipboard grim slurp swappy swaybg
+    brightnessctl clipman
+    xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-hyprland
+    polkit-gnome xdg-user-dirs xdg-utils
+    libinput
+    qt6-wayland qt6ct
+    noto-fonts noto-fonts-emoji ttf-nerd-fonts-symbols
+    bibata-cursor-theme
+  )
+
+  pac "${pkgs[@]}"
+  ok "Packages installed (Hyprland stack + helpers)"
+}
+
+# ================================
+# SDDM configuration (system)
+# ================================
+configure_sddm() {
+  pac sddm
+  ensure_dir "$ETC_SDDM_DIR"
+
+  # Symlink repo snippets into /etc/sddm.conf.d
+  local src_way="$FILES_ROOT/sddm/10-wayland.conf"
+  local src_sess="$FILES_ROOT/sddm/20-session.conf"
+  [[ -f "$src_way" && -f "$src_sess" ]] || fail "Repo SDDM snippets not found under $FILES_ROOT/sddm"
+
+  sudo ln -sfT -- "$src_way" "$ETC_SDDM_DIR/10-wayland.conf"
+  sudo ln -sfT -- "$src_sess" "$ETC_SDDM_DIR/20-session.conf"
+
+  # Enable + start SDDM
+  sudo systemctl enable --now sddm.service
+
+  # Verify
+  verify_cmd_enabled sddm.service
+  verify_cmd_active sddm.service
+  verify_file /usr/share/wayland-sessions/hyprland.desktop
+  ok "SDDM configured (Wayland) and Hyprland session available"
+}
+
+# ================================
+# User dotfiles (symlink from repo)
+# ================================
+deploy_user_dotfiles() {
+  # Hyprland configs
+  symlink_overwrite "$FILES_ROOT/hypr/hyprland.conf" "$CONF_HOME/hypr/hyprland.conf"
+  symlink_overwrite "$FILES_ROOT/hypr/env.conf"       "$CONF_HOME/hypr/env.conf"
+  symlink_overwrite "$FILES_ROOT/hypr/startup.conf"   "$CONF_HOME/hypr/startup.conf"
+  symlink_overwrite "$FILES_ROOT/hypr/monitors.conf"  "$CONF_HOME/hypr/monitors.conf"
+
+  # Waybar, Wofi, Mako, Foot
+  symlink_overwrite "$FILES_ROOT/waybar/config.jsonc" "$CONF_HOME/waybar/config.jsonc"
+  symlink_overwrite "$FILES_ROOT/waybar/style.css"    "$CONF_HOME/waybar/style.css"
+
+  symlink_overwrite "$FILES_ROOT/wofi/config"         "$CONF_HOME/wofi/config"
+  symlink_overwrite "$FILES_ROOT/wofi/style.css"      "$CONF_HOME/wofi/style.css"
+
+  symlink_overwrite "$FILES_ROOT/mako/config"         "$CONF_HOME/mako/config"
+  symlink_overwrite "$FILES_ROOT/foot/foot.ini"       "$CONF_HOME/foot/foot.ini"
+
+  # GTK settings
+  symlink_overwrite "$FILES_ROOT/gtk/gtk-3.0/settings.ini" "$CONF_HOME/gtk-3.0/settings.ini"
+  symlink_overwrite "$FILES_ROOT/gtk/gtk-4.0/settings.ini" "$CONF_HOME/gtk-4.0/settings.ini"
+
+  # environment.d
+  ensure_dir "$ENV_HOME"
+  symlink_overwrite "$FILES_ROOT/environment.d/10-qtct.conf"            "$ENV_HOME/10-qtct.conf"
+  symlink_overwrite "$FILES_ROOT/environment.d/20-cursor.conf"           "$ENV_HOME/20-cursor.conf"
+  symlink_overwrite "$FILES_ROOT/environment.d/30-hypr-nvidia-safe.conf" "$ENV_HOME/30-hypr-nvidia-safe.conf"
+
+  # Cursor theme selection
+  symlink_overwrite "$FILES_ROOT/icons/default/index.theme" "$ICONS_HOME/default/index.theme"
+
+  # Wallpapers (leave as a directory; user supplies default.jpg)
+  ensure_dir "$WALL_HOME"
+  [[ -f "$FILES_ROOT/wallpapers/README.txt" ]] && symlink_overwrite "$FILES_ROOT/wallpapers/README.txt" "$WALL_HOME/README.txt"
+
+  # Verify key ones
+  verify_file "$CONF_HOME/hypr/hyprland.conf"
+  verify_file "$CONF_HOME/waybar/config.jsonc"
+  verify_file "$CONF_HOME/gtk-3.0/settings.ini"
+  ok "Dotfiles symlinked from repo → $HOME"
+}
+
+# ================================
+# Post-setup (user)
+# ================================
+post_setup_user() {
+  # Create standard XDG dirs (no sudo)
+  xdg-user-dirs-update || true
+
+  ok "User environment prepared"
+}
+
+# ================================
+# Verification
+# ================================
+verify_stack() {
+  # Portal backend present
+  verify_file /usr/lib/xdg-desktop-portal-hyprland
+  # Greeter should be up; user can switch session to Hyprland
+  systemctl status sddm.service >/dev/null 2>&1 || fail "sddm.service not healthy"
+  ok "Portal backend present and SDDM healthy"
+}
+
+# ================================
+# Main
+# ================================
+main() {
+  ensure_not_root
+  ensure_cmd sudo
+
+  # Keep system fresh (user confirms unless ASSUME_YES=true)
+  sudo pacman -Syu
+  ok "System updated"
+
+  # Install packages
+  install_packages
+
+  # Deploy user config symlinks (no backups; overwrite)
+  deploy_user_dotfiles
+  post_setup_user
+
+  # System DM setup (sudo where needed)
+  configure_sddm
+
+  # Final verification
+  verify_stack
+
+  log "Hyprland setup complete. Log out to SDDM and select 'Hyprland'."
+  ok "Module finished"
+}
+
+main "$@"
+
+--- files/hyprland/environment.d/10-qtct.conf ---
+# Make Qt apps respect qt6ct in Wayland sessions
+QT_QPA_PLATFORMTHEME=qt6ct
+
+--- files/hyprland/environment.d/20-cursor.conf ---
+# Cursor theme for Wayland/XWayland apps
+XCURSOR_THEME=Bibata-Modern-Classic
+XCURSOR_SIZE=24
+
+--- files/hyprland/environment.d/30-hypr-nvidia-safe.conf ---
+# NVIDIA "safe mode" for Wayland (disabled by default)
+# Uncomment if you see cursor glitches/tearing:
+# WLR_NO_HARDWARE_CURSORS=1
+# __GLX_VENDOR_LIBRARY_NAME=nvidia
+# __NV_PRIME_RENDER_OFFLOAD=1
+# __VK_LAYER_NV_optimus=NVIDIA_only
+
+--- files/hyprland/foot/foot.ini ---
+# Minimal Foot terminal config
+font=JetBrains Mono,monospace 11
+dpi-aware=yes
+pad=8x8
+[cursor]
+style=beam
+blink=yes
+[colors]
+# Keep defaults; dark-friendly
+
+--- files/hyprland/gtk/gtk-3.0/settings.ini ---
+[Settings]
+gtk-theme-name=Adwaita-dark
+gtk-font-name=JetBrains Mono,monospace 11
+gtk-cursor-theme-name=Bibata-Modern-Classic
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=1
+
+--- files/hyprland/gtk/gtk-4.0/settings.ini ---
+[Settings]
+gtk-theme-name=Adwaita-dark
+gtk-font-name=JetBrains Mono,monospace 11
+gtk-cursor-theme-name=Bibata-Modern-Classic
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=1
+
+--- files/hyprland/hypr/env.conf ---
+# Session environment for Hyprland (sourced by hyprland.conf)
+# Keep minimal; prefer /etc/environment.d or ~/.config/environment.d for globals.
+
+# XDG portal: prefer hyprland backend (socket-activated)
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+export GTK_THEME=Adwaita-dark
+
+# NVIDIA "safe mode" (commented by default):
+# export WLR_NO_HARDWARE_CURSORS=1
+# export __GLX_VENDOR_LIBRARY_NAME=nvidia
+# export __NV_PRIME_RENDER_OFFLOAD=1
+# export __VK_LAYER_NV_optimus=NVIDIA_only
+
+--- files/hyprland/hypr/hyprland.conf ---
+# Hyprland minimal, safe-by-default config
+# - Dark theme, Waybar, Wofi, Mako, Foot
+# - Input via libinput (Wayland-native)
+# - No NVIDIA hacks by default (see env.conf / environment.d)
+#
+# Key notation: SUPER = Mod key
+# Per Arch Wiki: Hyprland (configuration basics)
+
+# === Appearance ===
+general {
+  gaps_in = 8
+  gaps_out = 16
+  border_size = 2
+  col.active_border = rgba(88aaffee)
+  col.inactive_border = rgba(222222aa)
+  layout = dwindle
+}
+
+decoration {
+  active_opacity = 1.0
+  inactive_opacity = 0.95
+  rounding = 8
+  blur = yes
+  blur_size = 6
+  blur_passes = 1
+}
+
+animations {
+  enabled = yes
+  # keep defaults; nothing fancy
+}
+
+# === Input (libinput via Hyprland) ===
+input {
+  kb_layout = us
+  follow_mouse = 1
+  touchpad {
+    natural_scroll = true
+    tap = true
+    tap_button_map = lrm
+    scroll_factor = 0.9
+  }
+}
+
+# === Monitors ===
+# See files/hyprland/hypr/monitors.conf for examples
+source = ~/.config/hypr/monitors.conf
+
+# === Environment (per-user session) ===
+# Place toggles (e.g., NVIDIA safe mode) in env.conf; we source it here.
+source = ~/.config/hypr/env.conf
+
+# === Autostart ===
+# Lightweight Wayland stack: wallpaper, bar, notif daemon, portal compat if needed
+source = ~/.config/hypr/startup.conf
+
+# === Keybinds ===
+$mod = SUPER
+
+# Launchers
+bind = $mod, Return, exec, foot
+bind = $mod, D, exec, wofi --show drun
+
+# Session controls
+bind = $mod, Q, killactive,
+bind = $mod SHIFT, E, exit,
+
+# Tiling
+bind = $mod, H, movefocus, l
+bind = $mod, L, movefocus, r
+bind = $mod, K, movefocus, u
+bind = $mod, J, movefocus, d
+
+# Workspaces
+bind = $mod, 1, workspace, 1
+bind = $mod, 2, workspace, 2
+bind = $mod, 3, workspace, 3
+bind = $mod, 4, workspace, 4
+bind = $mod, 5, workspace, 5
+bind = $mod SHIFT, 1, movetoworkspace, 1
+bind = $mod SHIFT, 2, movetoworkspace, 2
+bind = $mod SHIFT, 3, movetoworkspace, 3
+bind = $mod SHIFT, 4, movetoworkspace, 4
+bind = $mod SHIFT, 5, movetoworkspace, 5
+
+# Screenshots (grim + slurp + swappy)
+bind = , Print, exec, grim -g "$(slurp)" - | swappy -f -
+
+# Volume (PipeWire/Pulse via wpctl)
+bind = , XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+bind = , XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bind = , XF86AudioMute,        exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+
+# Brightness (intel_backlight via brightnessctl, to be installed later if desired)
+# bind = , XF86MonBrightnessUp,   exec, brightnessctl set +5%
+# bind = , XF86MonBrightnessDown, exec, brightnessctl set 5%-
+
+
+--- files/hyprland/hypr/monitors.conf ---
+# Example monitor layout (leave empty to let Hyprland auto-detect)
+# monitor=name, resolution@hz, position, scale
+# To list names: hyprctl monitors
+# monitor=eDP-1,1920x1200@60,0x0,1
+
+--- files/hyprland/hypr/startup.conf ---
+# Autostart for Hyprland (exec-once is recommended)
+# Wallpaper
+exec-once = swaybg -m fill -i ~/.config/wallpapers/default.jpg
+
+# Bar + notifications
+exec-once = waybar
+exec-once = mako
+
+# Clipboard
+exec-once = wl-paste --type text --watch clipman store
+exec-once = wl-paste --type image --watch clipman store
+
+--- files/hyprland/icons/default/index.theme ---
+[Icon Theme]
+Name=Default
+Comment=Default cursor theme
+Inherits=Bibata-Modern-Classic
+
+--- files/hyprland/mako/config ---
+# Dark mako notifications
+font=JetBrains Mono 11
+background-color=#1e1e2e
+text-color=#cdd6f4
+border-color=#89b4fa
+width=350
+height=140
+default-timeout=5000
+anchor=top-right
+margin=10,10,0,0
+
+--- files/hyprland/sddm/10-wayland.conf ---
+[General]
+# Per Arch Wiki: SDDM → Wayland
+DisplayServer=wayland
+
+--- files/hyprland/sddm/20-session.conf ---
+[Autologin]
+# Optional: AutologinUser=
+# Optional: AutologinSession=hyprland.desktop
+
+[General]
+# Default session shown in greeter
+Session=hyprland.desktop
+
+--- files/hyprland/wallpapers/README.txt ---
+Put your wallpaper here as "default.jpg".
+The setup module will reference: ~/.config/wallpapers/default.jpg
+
+--- files/hyprland/waybar/config.jsonc ---
+// Minimal dark Waybar config (JSONC)
+{
+  "layer": "top",
+  "position": "top",
+  "height": 28,
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": ["pulseaudio", "network", "battery"],
+  "clock": { "format": "{:%a %d %b  %H:%M}" },
+  "pulseaudio": { "tooltip": true, "scroll-step": 5 },
+  "network": { "format-wifi": "  {essid}", "format-ethernet": "  {ipaddr}", "format-disconnected": "" },
+  "battery": { "format": "{capacity}% {icon}", "format-icons": ["","","","",""] }
+}
+
+--- files/hyprland/waybar/style.css ---
+/* Dark, no external theme */
+* { border: none; border-radius: 0; font-family: JetBrains Mono, monospace; font-size: 12pt; min-height: 0; }
+window { background: #1e1e2e; color: #cdd6f4; }
+#workspaces button { padding: 0 8px; color: #a6adc8; }
+#workspaces button.active { color: #cdd6f4; border-bottom: 2px solid #89b4fa; }
+#clock, #battery, #network, #pulseaudio { padding: 0 10px; }
+
+--- files/hyprland/wofi/config ---
+show=drun
+prompt=Run:
+allow_images=true
+matching=fuzzy
+insensitive=true
+term=foot
+hide_scroll=true
+width=40%
+height=40%
+
+--- files/hyprland/wofi/style.css ---
+window { margin: 0px; background-color: #1e1e2e; color: #cdd6f4; }
+#input { margin: 8px; border: none; padding: 8px; background-color: #313244; }
+#inner-box { margin: 8px; }
+#entry { padding: 6px; }
+#entry:selected { background-color: #45475a; }
+
+--- files/snapper/home ---
+SUBVOLUME="/home"
+FSTYPE="btrfs"
+SYNC_ACL="yes"
+TIMELINE_CREATE="yes"
+TIMELINE_CLEANUP="yes"
+NUMBER_CLEANUP="yes"
+NUMBER_MIN_AGE="1800"
+TIMELINE_LIMIT_HOURLY="10"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="4"
+TIMELINE_LIMIT_MONTHLY="3"
+TIMELINE_LIMIT_YEARLY="0"
+NUMBER_LIMIT="50"
+NUMBER_LIMIT_IMPORTANT="10"
+
+--- files/snapper/root ---
+SUBVOLUME="/"
+FSTYPE="btrfs"
+SYNC_ACL="yes"
+TIMELINE_CREATE="yes"
+TIMELINE_CLEANUP="yes"
+NUMBER_CLEANUP="yes"
+NUMBER_MIN_AGE="1800"
+TIMELINE_LIMIT_HOURLY="10"
+TIMELINE_LIMIT_DAILY="7"
+TIMELINE_LIMIT_WEEKLY="4"
+TIMELINE_LIMIT_MONTHLY="3"
+TIMELINE_LIMIT_YEARLY="0"
+NUMBER_LIMIT="50"
+NUMBER_LIMIT_IMPORTANT="10"
 

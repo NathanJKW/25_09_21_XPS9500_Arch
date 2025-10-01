@@ -1,0 +1,9 @@
+show=drun
+prompt=Run:
+allow_images=true
+matching=fuzzy
+insensitive=true
+term=foot
+hide_scroll=true
+width=40%
+height=40%

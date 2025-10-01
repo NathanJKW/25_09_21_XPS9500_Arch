@@ -1,0 +1,10 @@
+# Dark mako notifications
+font=JetBrains Mono 11
+background-color=#1e1e2e
+text-color=#cdd6f4
+border-color=#89b4fa
+width=350
+height=140
+default-timeout=5000
+anchor=top-right
+margin=10,10,0,0

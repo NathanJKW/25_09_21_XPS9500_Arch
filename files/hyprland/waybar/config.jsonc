@@ -1,0 +1,13 @@
+// Minimal dark Waybar config (JSONC)
+{
+  "layer": "top",
+  "position": "top",
+  "height": 28,
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": ["pulseaudio", "network", "battery"],
+  "clock": { "format": "{:%a %d %b  %H:%M}" },
+  "pulseaudio": { "tooltip": true, "scroll-step": 5 },
+  "network": { "format-wifi": "  {essid}", "format-ethernet": "  {ipaddr}", "format-disconnected": "" },
+  "battery": { "format": "{capacity}% {icon}", "format-icons": ["","","","",""] }
+}
