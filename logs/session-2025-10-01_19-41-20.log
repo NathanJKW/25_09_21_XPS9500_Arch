@@ -1,0 +1,8 @@
+[2025-10-01 19:41:26] ==> [1] Base system (id=10) — Time/locale, networking, audio, firmware
+[2025-10-01 19:41:26]     path: /home/nathan/25_09_21_xps9500_arch/modules/10-base.sh
+[2025-10-01 19:41:26]     log : /home/nathan/25_09_21_xps9500_arch/logs/module-01-10-base-194120.log
+[2025-10-01 19:41:27] OK: Module Base system finished successfully
+[2025-10-01 19:41:27] ==> [2] Snapper (Btrfs) + GRUB (id=20) — Install snapper/snap-pac/grub-btrfs, create .snapshots, fstab+mount, enable timers+quota, symlink repo configs, rebuild GRUB, and verify with a test snapshot
+[2025-10-01 19:41:27]     path: /home/nathan/25_09_21_xps9500_arch/modules/20-snapper-btrfs-grub.sh
+[2025-10-01 19:41:27]     log : /home/nathan/25_09_21_xps9500_arch/logs/module-02-20-snapper-btrfs-grub-194120.log
+[2025-10-01 19:41:28] Module Snapper (Btrfs) + GRUB FAILED with rc=1 (see /home/nathan/25_09_21_xps9500_arch/logs/module-02-20-snapper-btrfs-grub-194120.log)

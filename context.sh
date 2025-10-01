@@ -51,6 +51,7 @@ FILES=(
   "./modules/30-base-system.sh"
   "./modules/40-gpu-setup.sh"
   "./modules/50-hyprland-setup.sh"
+  "./modules/60-app-install.sh"
   "./files/hyprland/environment.d/10-qtct.conf"
   "./files/hyprland/environment.d/20-cursor.conf"
   "./files/hyprland/environment.d/30-hypr-nvidia-safe.conf"
@@ -70,6 +71,7 @@ FILES=(
   "./files/hyprland/waybar/style.css"
   "./files/hyprland/wofi/config"
   "./files/hyprland/wofi/style.css"
+  "./files/kitty/kitty.conf"
   "./files/snapper/home"
   "./files/snapper/root"
 )

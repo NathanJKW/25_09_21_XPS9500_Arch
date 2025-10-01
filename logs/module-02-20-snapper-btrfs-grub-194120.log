@@ -1,0 +1,11 @@
+[2025-10-01 19:41:27] Installing packages: snapper snap-pac grub-btrfs
+warning: snapper-0.13.0-1 is up to date -- skipping
+warning: snap-pac-3.0.1-3 is up to date -- skipping
+warning: grub-btrfs-4.13-2 is up to date -- skipping
+ there is nothing to do
+[2025-10-01 19:41:27] Appending fstab entry for /home/.snapshots (subvol=/@home/.snapshots)
+[2025-10-01 19:41:27] Mounting /home/.snapshots
+[2025-10-01 19:41:27] OK: .snapshots subvolumes present and mounted
+[2025-10-01 19:41:27] Enabling Btrfs quota on /
+[2025-10-01 19:41:27] OK: Btrfs quota/qgroups enabled where applicable
+Failed to enable unit: Unit grub-btrfsd.path does not exist

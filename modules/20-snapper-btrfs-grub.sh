@@ -4,7 +4,7 @@
 # Arch Wiki references (keep aligned in comments):
 # - Btrfs: Installation guide → Filesystems → Btrfs
 # - Snapper: Create a configuration / Integration with pacman / Timeline & cleanup
-# - grub-btrfs: path unit generates /boot/grub/grub-btrfs.cfg from Snapper snapshots
+# - grub-btrfs: daemon watches snapshots and generates /boot/grub/grub-btrfs.cfg
 
 set -Eeuo pipefail
 nt=$'\n\t'; IFS=$nt
@@ -55,13 +55,35 @@ ensure_subvolume() {
 }
 
 ensure_fstab_entry() {
-  # per Arch Wiki: Btrfs — explicit mounts for subvolumes
-  local mnt="$1" subvol_name="${2:-${mnt##*/}}"
-  local uuid; uuid="$(findmnt -no UUID / || true)"
-  [[ -n "$uuid" ]] || fail "Could not resolve UUID for /"
+  # ensure_fstab_entry <mountpoint> [<subvol_leaf_name>]
+  # Example: ensure_fstab_entry "/.snapshots" ".snapshots"
+  local mnt="$1" leaf="${2:-${1##*/}}"
+
+  # Determine the parent mount for this mountpoint (root for /.snapshots, /home for /home/.snapshots)
+  local parent
+  case "$mnt" in
+    "/.snapshots")       parent="/" ;;
+    "/home/.snapshots")  parent="/home" ;;
+    *)                   parent="/" ;;
+  esac
+
+  # Resolve filesystem UUID and parent mount’s subvol path
+  local uuid opts parent_subvol subvol_path
+  uuid="$(findmnt -no UUID "$parent" || true)"
+  [[ -n "$uuid" ]] || fail "Could not resolve UUID for $parent"
+
+  opts="$(findmnt -no OPTIONS "$parent" || true)"
+  parent_subvol="$(sed -n 's/.*subvol=\([^,]*\).*/\1/p' <<<"$opts")"
+
+  if [[ -z "$parent_subvol" || "$parent_subvol" == "/" ]]; then
+    subvol_path="${leaf}"
+  else
+    subvol_path="${parent_subvol%/}/${leaf}"
+  fi
+
   if ! grep -qE "[[:space:]]${mnt}[[:space:]]" /etc/fstab; then
-    log "Appending fstab entry for ${mnt}"
-    printf 'UUID=%s  %s  btrfs  subvol=%s,%s  0 0\n' "$uuid" "$mnt" "$subvol_name" "$BTRFS_COMP_OPT" >> /etc/fstab
+    log "Appending fstab entry for ${mnt} (subvol=${subvol_path})"
+    printf 'UUID=%s  %s  btrfs  subvol=%s,%s  0 0\n' "$uuid" "$mnt" "$subvol_path" "$BTRFS_COMP_OPT" >> /etc/fstab
   fi
 }
 
@@ -99,7 +121,15 @@ verify_snapper_config() {
   ok "snapper config '$cfg' is readable"
 }
 
+# Manual generator fallback (first run before daemon notices inotify events)
+run_grub_btrfs_generator_if_available() {
+  if [[ -x /etc/grub.d/41_snapshots-btrfs ]]; then
+    /etc/grub.d/41_snapshots-btrfs || true
+  fi
+}
+
 verify_grub_btrfs_cfg_present() {
+  [[ -s /boot/grub/grub-btrfs.cfg ]] || run_grub_btrfs_generator_if_available
   [[ -s /boot/grub/grub-btrfs.cfg ]] || fail "/boot/grub/grub-btrfs.cfg missing or empty"
   ok "grub-btrfs configuration present"
 }
@@ -113,10 +143,16 @@ enable_quota_if_needed() {
   fi
 }
 
+enable_grub_btrfs_daemon() {
+  # Upstream daemon requires inotify-tools; harmless if already installed
+  pacman -S --needed inotify-tools
+  systemctl enable --now grub-btrfsd.service || true
+}
+
 force_grub_btrfs_refresh() {
-  # poke the generator
-  systemctl start grub-btrfsd.path || true
-  systemctl restart grub-btrfsd.service || true
+  # Make sure daemon is up, then run the generator once as a belt-and-braces refresh
+  enable_grub_btrfs_daemon
+  run_grub_btrfs_generator_if_available
 }
 
 verify_end_to_end_with_test_snapshot() {
@@ -191,16 +227,21 @@ main() {
   [[ -d /home ]] && enable_quota_if_needed "/home" || true
   ok "Btrfs quota/qgroups enabled where applicable"
 
-  # Timers + grub-btrfs watcher
+  # Timers
   systemctl enable --now snapper-timeline.timer
   systemctl enable --now snapper-cleanup.timer
-  systemctl enable --now grub-btrfsd.path
-  ok "snapper timers and grub-btrfs path enabled"
+  ok "snapper timers enabled"
 
-  # Rebuild GRUB (ensures include line exists)
+  # grub-btrfs daemon + initial generation
+  enable_grub_btrfs_daemon
+  ok "grub-btrfs daemon enabled"
+
+  # Rebuild GRUB (ensures include line exists) then verify snapshots cfg
   [[ -d /boot/grub ]] || fail "/boot/grub not found (is GRUB installed to this ESP?)"
   grub-mkconfig -o /boot/grub/grub.cfg
   ok "grub.cfg rebuilt"
+
+  force_grub_btrfs_refresh
   verify_grub_btrfs_cfg_present
 
   # Link repo configs and verify
